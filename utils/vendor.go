@@ -8,6 +8,9 @@ const (
 	VendorSrc     = "src"
 	VendorPkg     = "pkg"
 	VendorScripts = "scripts"
+	VendorInclude = "include"
+	VendorLib     = "lib"
+	VendorLib64   = "lib64"
 )
 
 type Pkg struct {
@@ -23,17 +26,17 @@ type Packages struct {
 }
 
 type Package struct {
-	Path         string            `json:"path"`
-	Installed    bool              `json:"_"`
-	Dependencies []string          `json:"dependencies"`
-	Build        map[string]string `json:"build"`
+	Path string `json:"path"`
+	//	Installed    bool              `json:"_"`
+	//	Dependencies []string          `json:"dependencies"`
+	Build []string `json:"build"`
 }
 
 type GitPackage struct {
 	Package
-	Tag    string `json:"tag"`   // git tag
+	Tag    string `json:"tag"`    // git tag
 	Branch string `json:"branch"` // git branch
-	Hash   string `json:"hash"`  // git commit hash
+	Hash   string `json:"hash"`   // git commit hash
 }
 
 type FilesPackage struct {
@@ -47,6 +50,10 @@ type ArchivePackage struct {
 
 func GetPackageSrcPath(base, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorSrc, packageName)
+}
+
+func GetPkgIncludePath(base string) (path string) {
+	return filepath.Join(base, VendorName, VendorPkg, VendorInclude)
 }
 
 //

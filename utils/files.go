@@ -19,7 +19,7 @@ func CheckDirectoryLists(dirs ...string) error {
 func CheckDir(path string) error {
 	if fileInfo, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) { // directory not exists.
-			if err := os.Mkdir(path, os.ModeDir); err != nil { // todo
+			if err := os.MkdirAll(path, 0744); err != nil { // todo
 				return err // create dir error.
 			}
 		} else {

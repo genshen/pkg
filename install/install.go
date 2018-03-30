@@ -91,25 +91,51 @@ func (v *get) install(installPath string, packages *utils.Packages) error {
 	}
 	// download files src, and install it.
 	for key, pkg := range packages.FilesPackages {
-		if err := v.filesSrc(installPath, key, pkg.Path, pkg.Files); err != nil {
-			// todo roolback, clean src.
+		srcDes := utils.GetPackageSrcPath(installPath, key)
+		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
+			if err := v.filesSrc(srcDes, key, pkg.Path, pkg.Files); err != nil {
+				// todo roolback, clean src.
+				return err
+			} else {
+				// if source code downloading succeed, then compile and install it;
+				// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
+				// do post install
+				if err := v.postInstall(installPath, key, pkg.Package.Build); err != nil {
+					return err;
+				}
+			}
+		} else if err != nil {
 			return err
 		} else {
-			// if source code downloading succeed, then compile and install it;
-			// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
+			log.Printf("skiped %s in %s, because it already exists.\n", key, srcDes)
 		}
 	}
 	// download git src and install it.
 	for key, pkg := range packages.GitPackages {
-		if err := v.gitSrc(installPath, key, pkg.Path, pkg.Hash, pkg.Branch, pkg.Tag); err != nil {
-			// todo roolback, clean src.
-			return err
+		repositoryPrefix := utils.GetPackageSrcPath(installPath, key)
+		// check directory, if not exists, then create it.
+		if _, err := os.Stat(repositoryPrefix); os.IsNotExist(err) {
+			if err := v.gitSrc(repositoryPrefix, key, pkg.Path, pkg.Hash, pkg.Branch, pkg.Tag); err != nil {
+				// todo roolback, clean src.
+				return err
+			} else {
+				// if source code downloading succeed, then compile and install it;
+				// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
+				// do post install
+				if err := v.postInstall(installPath, key, pkg.Package.Build); err != nil {
+					return err;
+				}
+			}
+		} else if err != nil {
+			return err;
 		} else {
-			// if source code downloading succeed, then compile and install it;
-			// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
+			log.Printf("skiped %s in %s, because it already exists.\n", key, repositoryPrefix)
+		}
+		// install dependency for this package.
+		if err := v.installSubDependency(repositoryPrefix); err != nil {
+			return err;
 		}
 	}
-
 	return nil
 }
 
@@ -137,21 +163,52 @@ func (v *get) installSubDependency(installPath string) error {
 
 // download archived package source code to destination directory, usually its 'vendor/src/PackageName/'.
 // installPath is where parent project's file pkg.json is located.
-func (get *get) archiveSrc(installPath string, packageName string, path string) error {
+func (get *get) archiveSrc(des string, packageName string, path string) error {
+	if err := os.MkdirAll(des, 0744); err != nil {
+		return err
+	}
 
+	log.Printf("downloading %s to %s\n", packageName, des)
+
+	res, err := http.Get(path)
+	if err != nil {
+		return err // todo fallback
+	}
+	if res.StatusCode >= 400 {
+		return errors.New("Http response code is not ok.")
+	}
+
+	// save file.
+	zipName := filepath.Join(des, packageName+".zip")
+	if fp, err := os.Create(zipName); err != nil { //todo create dir if file includes father dirs.
+		return err // todo fallback
+	} else {
+		if _, err = io.Copy(fp, res.Body); err != nil {
+			return err // todo fallback
+		}
+	}
+	log.Printf("downloaded %s to %s\n", packageName, des)
+
+	// unzip
+	log.Printf("unziping %s to %s\n", zipName, des)
+	err = utils.Unzip(zipName, des)
+	if err != nil {
+		return err
+	}
+	log.Printf("finished unziping %s to %s\n", zipName, des)
 	return nil
 }
 
 // files: just download files specified by map files.
-func (get *get) filesSrc(installPath string, packageName string, baseUrl string, files map[string]string) error {
-	srcDes := utils.GetPackageSrcPath(installPath, packageName)
+func (get *get) filesSrc(des string, packageName string, baseUrl string, files map[string]string) error {
 	// check packageName dir, if not exists, then create it.
-	if err := os.MkdirAll(srcDes, 0744); err != nil {
+	if err := os.MkdirAll(des, 0744); err != nil {
 		return err
 	}
 
 	// download files:
 	for k, file := range files {
+		log.Printf("downloading %s to %s\n", packageName, filepath.Join(des, file))
 		res, err := http.Get(utils.UrlJoin(baseUrl, k))
 		if err != nil {
 			return err // todo fallback
@@ -160,13 +217,13 @@ func (get *get) filesSrc(installPath string, packageName string, baseUrl string,
 			return errors.New("Http response code is not ok.")
 		}
 
-		if fp, err := os.Create(filepath.Join(srcDes, file)); err != nil { //todo create dir if file includes father dirs.
+		if fp, err := os.Create(filepath.Join(des, file)); err != nil { //todo create dir if file includes father dirs.
 			return err // todo fallback
 		} else {
-			log.Println("downloaded to ", filepath.Join(srcDes, file))
 			if _, err = io.Copy(fp, res.Body); err != nil {
 				return err // todo fallback
 			}
+			log.Printf("downloaded %s to %s\n", packageName, filepath.Join(des, file))
 		}
 	}
 
@@ -178,9 +235,7 @@ func (get *get) filesSrc(installPath string, packageName string, baseUrl string,
 //  hash: git commit hash.
 //  branch: git branch.
 //  tag:  git tag.
-func (get *get) gitSrc(installPath string, packageName, gitPath, hash, branch, tag string) error {
-	repositoryPrefix := utils.GetPackageSrcPath(installPath, packageName)
-	// check packageName dir, if not exists, then create it.
+func (get *get) gitSrc(repositoryPrefix string, packageName, gitPath, hash, branch, tag string) error {
 	if err := os.MkdirAll(repositoryPrefix, 0744); err != nil {
 		return err
 	}
@@ -227,6 +282,16 @@ func (get *get) gitSrc(installPath string, packageName, gitPath, hash, branch, t
 			return err
 		}
 	}
-	// install dependency for this package.
-	return get.installSubDependency(repositoryPrefix)
+	return nil
+}
+
+func (get *get) postInstall(installPath string, packageName string, build []string) error {
+	srcPath := utils.GetPackageSrcPath(installPath, packageName)
+	log.Println("installing package ", packageName)
+	for _, ins := range build {
+		if err := utils.RunIns(installPath, srcPath, ins); err != nil {
+			return err
+		}
+	}
+	return nil
 }
