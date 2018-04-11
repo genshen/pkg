@@ -216,7 +216,7 @@ func (get *get) filesSrc(des string, packageName string, baseUrl string, files m
 		if res.StatusCode >= 400 {
 			return errors.New("Http response code is not ok.")
 		}
-
+		// todo create dir
 		if fp, err := os.Create(filepath.Join(des, file)); err != nil { //todo create dir if file includes father dirs.
 			return err // todo fallback
 		} else {
