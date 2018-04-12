@@ -1,5 +1,6 @@
 ## pkg
-FROM golang:1.10.1
+# docker build --rm=true  -t genshen/pkg:0.0.1 .
+FROM golang:1.10.1 as builder
 
 MAINTAINER genshen genshenchu@gmail.com
 
@@ -13,17 +14,14 @@ WORKDIR ${PROJECT_PATH}
 ADD . ${PROJECT_PATH}
 
 # Then run your script to install dependencies and build application
-RUN go get -u github.com/kardianos/govendor \
+RUN go get -u -v github.com/kardianos/govendor \
     && govendor sync \
-    && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ${BINARY_NAME}
+    && CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ${BINARY_NAME} .
 
 # Next start another building context
-FROM scratch
+FROM alpine:latest
 
 # Copy only build result from previous step to new lightweight image
-COPY --from=0 ${PROJECT_PATH}/${BINARY_NAME} .
+COPY --from=builder /go/src/github.com/genshen/pkg/pkg /usr/local/bin/pkg
 
-### copy pkg file.
-# COPY pkg /usr/local/bin
-
-# CMD ["/bin/ash"]
+CMD ["/bin/ash"]
