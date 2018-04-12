@@ -1,7 +1,0 @@
-## pkg
-FROM alpine:3.7
-
-MAINTAINER genshen genshenchu@gmail.com
-
-### copy pkg file.
-COPY pkg /usr/local/bin
