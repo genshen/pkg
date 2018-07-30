@@ -25,23 +25,22 @@ var getCommand = &cmds.Command{
 	HasOptions:  true,
 }
 
-var (
-	pkgFilePath string
-)
-
 func init() {
-	getCommand.Runner = &get{}
+	var pkgHome string
 	fs := flag.NewFlagSet("install", flag.ContinueOnError)
 	getCommand.FlagSet = fs
-	getCommand.FlagSet.StringVar(&pkgFilePath, "p", "./", "base path of file pkg.json")
+	getCommand.FlagSet.StringVar(&pkgHome, "p", "./", "home path for file pkg.json")
 	getCommand.FlagSet.Usage = getCommand.Usage // use default usage provided by cmds.Command.
+	getCommand.Runner = &get{PkgHome: pkgHome}
 	cmds.AllCommands = append(cmds.AllCommands, getCommand)
 }
 
-type get struct{}
+type get struct {
+	PkgHome string // the path of 'pkg.json'
+}
 
 func (v *get) PreRun() error {
-	jsonPath := filepath.Join(pkgFilePath, utils.PkgFileName)
+	jsonPath := filepath.Join(v.PkgHome, utils.PkgFileName)
 	// check pkg.json file existence.
 	if fileInfo, err := os.Stat(jsonPath); err != nil {
 		return err
@@ -55,7 +54,7 @@ func (v *get) PreRun() error {
 }
 
 func (v *get) Run() error {
-	if pkgJsonPath, err := os.Open(filepath.Join(pkgFilePath, utils.PkgFileName)); err != nil { // open file
+	if pkgJsonPath, err := os.Open(filepath.Join(v.PkgHome, utils.PkgFileName)); err != nil { // open file
 		return err
 	} else {
 		if bytes, err := ioutil.ReadAll(pkgJsonPath); err != nil { // read file contents
@@ -65,19 +64,18 @@ func (v *get) Run() error {
 			if err := json.Unmarshal(bytes, &pkgs); err != nil { // unmarshal json to struct
 				return err
 			}
-			return v.install(pkgFilePath, &pkgs.Packages)
+			return v.install(v.PkgHome, &pkgs.Packages)
 		}
 	}
 	return nil
 }
 
-/**
-install a package to destination refer to installPath, including source code and installed files.
-usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
-installPath is where the file pkg.json is located.
-*/
+//
+// install a package to destination refer to installPath, including source code and installed files.
+// usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
+// installPath: installPath is where the file pkg.json is located.
 func (v *get) install(installPath string, packages *utils.Packages) error {
-	//todo packages have dependencies.
+	// todo packages have dependencies.
 	// todo check install.
 	// download archive src package.
 	for key, pkg := range packages.ArchivePackages {
@@ -86,7 +84,7 @@ func (v *get) install(installPath string, packages *utils.Packages) error {
 			return err
 		} else {
 			// if source code downloading succeed, then compile and install it;
-			// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
+			// besides, you can also use source code in your project (e.g. use cmake package in cmake project).
 		}
 	}
 	// download files src, and install it.
@@ -150,7 +148,7 @@ func (v *get) installSubDependency(installPath string) error {
 			if err := json.Unmarshal(bytes, &pkgs); err != nil { // unmarshal json to struct
 				return err
 			}
-			return v.install(installPath, &pkgs.Packages)
+			return v.install(v.PkgHome, &pkgs.Packages)
 		}
 	} else {
 		if os.IsNotExist(err) {
@@ -175,7 +173,7 @@ func (get *get) archiveSrc(des string, packageName string, path string) error {
 		return err // todo fallback
 	}
 	if res.StatusCode >= 400 {
-		return errors.New("Http response code is not ok.")
+		return errors.New("http response code is not ok (200)")
 	}
 
 	// save file.
@@ -214,7 +212,7 @@ func (get *get) filesSrc(des string, packageName string, baseUrl string, files m
 			return err // todo fallback
 		}
 		if res.StatusCode >= 400 {
-			return errors.New("Http response code is not ok.")
+			return errors.New("http response code is not ok (200)")
 		}
 		// todo create dir
 		if fp, err := os.Create(filepath.Join(des, file)); err != nil { //todo create dir if file includes father dirs.
@@ -231,10 +229,10 @@ func (get *get) filesSrc(des string, packageName string, baseUrl string, files m
 }
 
 // params:
-//  gitPath:  package remote path, usually its a url.
-//  hash: git commit hash.
-//  branch: git branch.
-//  tag:  git tag.
+// gitPath:  package remote path, usually its a url.
+// hash: git commit hash.
+// branch: git branch.
+// tag:  git tag.
 func (get *get) gitSrc(repositoryPrefix string, packageName, gitPath, hash, branch, tag string) error {
 	if err := os.MkdirAll(repositoryPrefix, 0744); err != nil {
 		return err
@@ -285,6 +283,9 @@ func (get *get) gitSrc(repositoryPrefix string, packageName, gitPath, hash, bran
 	return nil
 }
 
+// the source code is in vendor/src/{packageName} directory.
+// installPath is the location of 'pkg.json'.
+// in this function, it start to execute 'build' command (e.g. copy header into include directory.).
 func (get *get) postInstall(installPath string, packageName string, build []string) error {
 	srcPath := utils.GetPackageSrcPath(installPath, packageName)
 	log.Println("installing package ", packageName)

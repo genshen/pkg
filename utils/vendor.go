@@ -52,8 +52,14 @@ func GetPackageSrcPath(base, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorSrc, packageName)
 }
 
-func GetPkgIncludePath(base string) (path string) {
-	return filepath.Join(base, VendorName, VendorPkg, VendorInclude)
+// return @base/vendor/pkg/@packageName/include
+func GetPkgIncludePath(base string, packageName string) (path string) {
+	return filepath.Join(base, VendorName, VendorPkg, packageName, VendorInclude)
+}
+
+// return @base/vendor/include
+func GetIncludePath(base string) (path string) {
+	return filepath.Join(base, VendorName, VendorInclude)
 }
 
 //
