@@ -17,6 +17,12 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 )
 
+const (
+	DlStatusEmpty = iota
+	DlStatusSkip
+	DlStatusOk
+)
+
 var getCommand = &cmds.Command{
 	Name:        "install",
 	Summary:     "install packages from existed file pkg.json",
@@ -37,10 +43,23 @@ func init() {
 
 type get struct {
 	PkgHome string // the path of 'pkg.json'
+	DepTree DependencyTree
 }
 
-func (v *get) PreRun() error {
-	jsonPath := filepath.Join(v.PkgHome, utils.PkgFileName)
+type DependencyTree struct {
+	DepPkgContext
+	Dependency []*DependencyTree
+	Builder    []string // outer builder (lib used by others)
+	DlStatus   int
+}
+
+type DepPkgContext struct {
+	PackageName string
+	SrcPath     string
+}
+
+func (get *get) PreRun() error {
+	jsonPath := filepath.Join(get.PkgHome, utils.PkgFileName)
 	// check pkg.json file existence.
 	if fileInfo, err := os.Stat(jsonPath); err != nil {
 		return err
@@ -50,11 +69,12 @@ func (v *get) PreRun() error {
 
 	return nil
 	// check .vendor  and some related directory, if not exists, create it.
-	//return utils.CheckVendorPath(pkgFilePath)
+	// return utils.CheckVendorPath(pkgFilePath)
 }
 
-func (v *get) Run() error {
-	if pkgJsonPath, err := os.Open(filepath.Join(v.PkgHome, utils.PkgFileName)); err != nil { // open file
+func (get *get) Run() error {
+	// parse pkg.json and download source code.
+	if pkgJsonPath, err := os.Open(filepath.Join(get.PkgHome, utils.PkgFileName)); err != nil { // open file
 		return err
 	} else {
 		if bytes, err := ioutil.ReadAll(pkgJsonPath); err != nil { // read file contents
@@ -64,74 +84,85 @@ func (v *get) Run() error {
 			if err := json.Unmarshal(bytes, &pkgs); err != nil { // unmarshal json to struct
 				return err
 			}
-			return v.install(v.PkgHome, &pkgs.Packages)
+			return get.dlSrc(get.PkgHome, &pkgs.Packages, &get.DepTree)
 		}
+	}
+	// compile and install the source code.
+	// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
+	get.DepTree.DlStatus = DlStatusEmpty
+	if err := buildPkg(&get.DepTree, get.PkgHome); err != nil {
+		log.Fatalln(err)
 	}
 	return nil
 }
 
 //
-// install a package to destination refer to installPath, including source code and installed files.
+// download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
-// installPath: installPath is where the file pkg.json is located.
-func (v *get) install(installPath string, packages *utils.Packages) error {
+// pkgHome: pkgHome is where the file pkg.json is located.
+func (get *get) dlSrc(pkgHome string, packages *utils.Packages, depTree *DependencyTree) error {
 	// todo packages have dependencies.
 	// todo check install.
 	// download archive src package.
 	for key, pkg := range packages.ArchivePackages {
-		if err := v.archiveSrc(installPath, key, pkg.Path); err != nil {
-			// todo roolback, clean src.
+		if err := get.archiveSrc(pkgHome, key, pkg.Path); err != nil {
+			// todo rollback, clean src.
 			return err
 		} else {
 			// if source code downloading succeed, then compile and install it;
 			// besides, you can also use source code in your project (e.g. use cmake package in cmake project).
 		}
 	}
-	// download files src, and install it.
+	// download files src, and add it to build tree.
 	for key, pkg := range packages.FilesPackages {
-		srcDes := utils.GetPackageSrcPath(installPath, key)
+		srcDes := utils.GetPackageSrcPath(pkgHome, key)
+		dep := DependencyTree{
+			Builder:       pkg.Package.Build[:],
+			DlStatus:      DlStatusEmpty,
+			DepPkgContext: DepPkgContext{SrcPath: srcDes, PackageName: key},
+		}
+
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
-			if err := v.filesSrc(srcDes, key, pkg.Path, pkg.Files); err != nil {
-				// todo roolback, clean src.
+			if err := get.filesSrc(srcDes, key, pkg.Path, pkg.Files); err != nil {
+				// todo rollback, clean src.
 				return err
-			} else {
-				// if source code downloading succeed, then compile and install it;
-				// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
-				// do post install
-				if err := v.postInstall(installPath, key, pkg.Package.Build); err != nil {
-					return err;
-				}
 			}
+			dep.DlStatus = DlStatusOk
 		} else if err != nil {
 			return err
 		} else {
-			log.Printf("skiped %s in %s, because it already exists.\n", key, srcDes)
+			dep.DlStatus = DlStatusSkip
+			log.Printf("skiped downloading %s in %s, because it already exists.\n", key, srcDes)
 		}
+		// add to dependency tree.
+		depTree.Dependency = append(depTree.Dependency, &dep)
 	}
-	// download git src and install it.
+	// download git src, and add it to build tree.
 	for key, pkg := range packages.GitPackages {
-		repositoryPrefix := utils.GetPackageSrcPath(installPath, key)
-		// check directory, if not exists, then create it.
-		if _, err := os.Stat(repositoryPrefix); os.IsNotExist(err) {
-			if err := v.gitSrc(repositoryPrefix, key, pkg.Path, pkg.Hash, pkg.Branch, pkg.Tag); err != nil {
-				// todo roolback, clean src.
-				return err
-			} else {
-				// if source code downloading succeed, then compile and install it;
-				// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
-				// do post install
-				if err := v.postInstall(installPath, key, pkg.Package.Build); err != nil {
-					return err;
-				}
-			}
-		} else if err != nil {
-			return err;
-		} else {
-			log.Printf("skiped %s in %s, because it already exists.\n", key, repositoryPrefix)
+		srcDes := utils.GetPackageSrcPath(pkgHome, key)
+		dep := DependencyTree{
+			Builder:       pkg.Package.Build[:],
+			DlStatus:      DlStatusEmpty,
+			DepPkgContext: DepPkgContext{SrcPath: srcDes, PackageName: key},
 		}
+		// check directory, if not exists, then create it.
+		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
+			if err := get.gitSrc(srcDes, key, pkg.Path, pkg.Hash, pkg.Branch, pkg.Tag); err != nil {
+				// todo rollback, clean src.
+				return err
+			}
+			dep.DlStatus = DlStatusOk
+		} else if err != nil {
+			return err
+		} else {
+			dep.DlStatus = DlStatusSkip
+			log.Printf("skiped downloading %s in %s, because it already exists.\n", key, srcDes)
+		}
+		// add to dependency tree.
+		depTree.Dependency = append(depTree.Dependency, &dep)
 		// install dependency for this package.
-		if err := v.installSubDependency(repositoryPrefix); err != nil {
-			return err;
+		if err := get.installSubDependency(srcDes, &dep); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -139,7 +170,7 @@ func (v *get) install(installPath string, packages *utils.Packages) error {
 
 // install dependency in a dependency, installPath is the path of sub-dependency.
 // todo circle detect
-func (v *get) installSubDependency(installPath string) error {
+func (get *get) installSubDependency(installPath string, depTree *DependencyTree) error {
 	if pkgJsonPath, err := os.Open(filepath.Join(installPath, utils.PkgFileName)); err == nil { // pkg.json not exists.
 		if bytes, err := ioutil.ReadAll(pkgJsonPath); err != nil { // read file contents
 			return err
@@ -148,7 +179,7 @@ func (v *get) installSubDependency(installPath string) error {
 			if err := json.Unmarshal(bytes, &pkgs); err != nil { // unmarshal json to struct
 				return err
 			}
-			return v.install(v.PkgHome, &pkgs.Packages)
+			return get.dlSrc(get.PkgHome, &pkgs.Packages, depTree)
 		}
 	} else {
 		if os.IsNotExist(err) {
@@ -160,13 +191,13 @@ func (v *get) installSubDependency(installPath string) error {
 }
 
 // download archived package source code to destination directory, usually its 'vendor/src/PackageName/'.
-// installPath is where parent project's file pkg.json is located.
-func (get *get) archiveSrc(des string, packageName string, path string) error {
-	if err := os.MkdirAll(des, 0744); err != nil {
+// srcPath is the src location of this package (vendor/src/packageName).
+func (get *get) archiveSrc(srcPath string, packageName string, path string) error {
+	if err := os.MkdirAll(srcPath, 0744); err != nil {
 		return err
 	}
 
-	log.Printf("downloading %s to %s\n", packageName, des)
+	log.Printf("downloading %s to %s\n", packageName, srcPath)
 
 	res, err := http.Get(path)
 	if err != nil {
@@ -177,7 +208,7 @@ func (get *get) archiveSrc(des string, packageName string, path string) error {
 	}
 
 	// save file.
-	zipName := filepath.Join(des, packageName+".zip")
+	zipName := filepath.Join(srcPath, packageName+".zip")
 	if fp, err := os.Create(zipName); err != nil { //todo create dir if file includes father dirs.
 		return err // todo fallback
 	} else {
@@ -185,43 +216,43 @@ func (get *get) archiveSrc(des string, packageName string, path string) error {
 			return err // todo fallback
 		}
 	}
-	log.Printf("downloaded %s to %s\n", packageName, des)
+	log.Printf("downloaded %s to %s\n", packageName, srcPath)
 
 	// unzip
-	log.Printf("unziping %s to %s\n", zipName, des)
-	err = utils.Unzip(zipName, des)
+	log.Printf("unziping %s to %s\n", zipName, srcPath)
+	err = utils.Unzip(zipName, srcPath)
 	if err != nil {
 		return err
 	}
-	log.Printf("finished unziping %s to %s\n", zipName, des)
+	log.Printf("finished unziping %s to %s\n", zipName, srcPath)
 	return nil
 }
 
 // files: just download files specified by map files.
-func (get *get) filesSrc(des string, packageName string, baseUrl string, files map[string]string) error {
+func (get *get) filesSrc(srcDes string, packageName string, baseUrl string, files map[string]string) error {
 	// check packageName dir, if not exists, then create it.
-	if err := os.MkdirAll(des, 0744); err != nil {
+	if err := os.MkdirAll(srcDes, 0744); err != nil {
 		return err
 	}
 
 	// download files:
 	for k, file := range files {
-		log.Printf("downloading %s to %s\n", packageName, filepath.Join(des, file))
+		log.Printf("downloading %s to %s\n", packageName, filepath.Join(srcDes, file))
 		res, err := http.Get(utils.UrlJoin(baseUrl, k))
 		if err != nil {
-			return err // todo fallback
+			return err // todo rollback
 		}
 		if res.StatusCode >= 400 {
 			return errors.New("http response code is not ok (200)")
 		}
 		// todo create dir
-		if fp, err := os.Create(filepath.Join(des, file)); err != nil { //todo create dir if file includes father dirs.
+		if fp, err := os.Create(filepath.Join(srcDes, file)); err != nil { //todo create dir if file includes father dirs.
 			return err // todo fallback
 		} else {
 			if _, err = io.Copy(fp, res.Body); err != nil {
 				return err // todo fallback
 			}
-			log.Printf("downloaded %s to %s\n", packageName, filepath.Join(des, file))
+			log.Printf("downloaded %s to %s\n", packageName, filepath.Join(srcDes, file))
 		}
 	}
 
@@ -277,20 +308,6 @@ func (get *get) gitSrc(repositoryPrefix string, packageName, gitPath, hash, bran
 		// remove .git directory.
 		err = os.RemoveAll(filepath.Join(repositoryPrefix, ".git"))
 		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// the source code is in vendor/src/{packageName} directory.
-// installPath is the location of 'pkg.json'.
-// in this function, it start to execute 'build' command (e.g. copy header into include directory.).
-func (get *get) postInstall(installPath string, packageName string, build []string) error {
-	srcPath := utils.GetPackageSrcPath(installPath, packageName)
-	log.Println("installing package ", packageName)
-	for _, ins := range build {
-		if err := utils.RunIns(installPath, srcPath, ins); err != nil {
 			return err
 		}
 	}
