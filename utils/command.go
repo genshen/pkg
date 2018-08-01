@@ -55,6 +55,7 @@ func RunIns(pkgHome, packageName, srcPath, ins string) error {
 			script := insTriple[2]
 			script = strings.Replace(script, "{SRC_DIR}", srcPath, -1)
 			script = strings.Replace(script, "{PKG_DIR}", GetPkgPath(pkgHome, packageName), -1)
+
 			log.Println("running [", script, "] in directory", cacheDir)
 
 			cmd := exec.Command("sh", "-c", script) // todo only for linux OS.

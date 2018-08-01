@@ -3,7 +3,6 @@ package utils
 import "path/filepath"
 
 const (
-	PkgFileName   = "pkg.json"
 	VendorName    = "vendor"
 	VendorCache   = "cache"
 	VendorSrc     = "src"
@@ -15,7 +14,9 @@ const (
 )
 
 const (
+	PkgFileName   = "pkg.json"
 	CMakeDep = "pkg.dep.cmake"
+	CMakeVendorPath = "${VENDOR_PATH}"
 )
 
 type Pkg struct {
@@ -64,6 +65,11 @@ func GetPackageSrcPath(base, packageName string) (path string) {
 // return @base/vendor/pkg/@packageName
 func GetPkgPath(base string, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorPkg, packageName)
+}
+
+// return ${VENDOR_PATH}/pkg/@packageName
+func GetCMakeVendorPkgPath( packageName string) (path string) {
+	return filepath.Join(CMakeVendorPath, VendorPkg, packageName)
 }
 
 // return @base/vendor/pkg/@packageName/include
