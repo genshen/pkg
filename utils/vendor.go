@@ -5,6 +5,7 @@ import "path/filepath"
 const (
 	PkgFileName   = "pkg.json"
 	VendorName    = "vendor"
+	VendorCache   = "cache"
 	VendorSrc     = "src"
 	VendorPkg     = "pkg"
 	VendorScripts = "scripts"
@@ -13,10 +14,16 @@ const (
 	VendorLib64   = "lib64"
 )
 
+const (
+	CMakeDep = "dep.cmake"
+)
+
 type Pkg struct {
-	Command   map[string]string `json:"command"`
-	Compilers map[string]string `json:"compilers"`
-	Packages  Packages          `json:"packages"`
+	Command   map[string]string   `json:"command"`
+	Compilers map[string]string   `json:"compilers"`
+	Packages  Packages            `json:"packages"`
+	Build     map[string][]string `json:"build"` // todo platform
+	CMakeLib  string              `json:"cmake_lib"`
 }
 
 type Packages struct {
@@ -26,10 +33,12 @@ type Packages struct {
 }
 
 type Package struct {
-	Path string `json:"path"`
-	//	Installed    bool              `json:"_"`
+	Path     string `json:"path"`
+	Override bool   `json:"override"` // override package self build.
 	//	Dependencies []string          `json:"dependencies"`
-	Build []string `json:"build"`
+	Build            []string `json:"build"`
+	CMakeLib         string   `json:"cmake_lib"`
+	CMakeLibOverride bool     `json:"cmake_lib_override"`
 }
 
 type GitPackage struct {
@@ -52,6 +61,11 @@ func GetPackageSrcPath(base, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorSrc, packageName)
 }
 
+// return @base/vendor/pkg/@packageName
+func GetPkgPath(base string, packageName string) (path string) {
+	return filepath.Join(base, VendorName, VendorPkg, packageName)
+}
+
 // return @base/vendor/pkg/@packageName/include
 func GetPkgIncludePath(base string, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorPkg, packageName, VendorInclude)
@@ -60,6 +74,11 @@ func GetPkgIncludePath(base string, packageName string) (path string) {
 // return @base/vendor/include
 func GetIncludePath(base string) (path string) {
 	return filepath.Join(base, VendorName, VendorInclude)
+}
+
+// return @base/vendor/cache
+func GetCachePath(base, packageName string) (path string) {
+	return filepath.Join(base, VendorName, VendorCache, packageName)
 }
 
 //
