@@ -4,15 +4,17 @@ import (
 	"io"
 	"github.com/genshen/pkg/utils"
 	"log"
-	"os"
-	"strings"
-	"path/filepath"
 	"text/template"
+	"strings"
+	"os"
+	"path/filepath"
 )
 
 type cmakeDepData struct {
 	LibName           string
-	SrcPath           string
+	PkgHome           string
+	SrcDir            string
+	PkgDir            string
 	InnerBuildCommand []string
 	OuterBuildCommand []string
 	InnerCMake        string
@@ -21,10 +23,11 @@ type cmakeDepData struct {
 
 const CmakeToFile = `
 # lib {.LibName}
+# src: {{.SrcDir}}
+# pkg: {{.PkgDir}}
 # build command:
 #     inner build command: {{.InnerBuildCommand}}
 #     outer build command: {{.OuterBuildCommand}}
-# src: {{.SrcPath}}
 {{.InnerCMake}} # inner cmake
 {{.OuterCMake}} # outer cmake
 `
@@ -54,7 +57,9 @@ func cmakeLib(dep *DependencyTree, pkgHome string, cmakeLibSet *map[string]bool,
 		OuterCMake:        dep.CMakeLib,
 		OuterBuildCommand: dep.Builder,
 		InnerBuildCommand: dep.SelfBuild,
-		SrcPath:           utils.GetPkgPath(pkgHome, dep.Context.PackageName),
+		PkgHome:           pkgHome,
+		SrcDir:            relativePath(utils.GetPackageSrcPath(pkgHome, dep.Context.PackageName)),
+		PkgDir:            relativePath(utils.GetPkgPath(pkgHome, dep.Context.PackageName)),
 	}
 	if dep.Context.CMakeLibOverride { // self cmake
 		toFile.InnerCMake = ""
@@ -66,28 +71,39 @@ func cmakeLib(dep *DependencyTree, pkgHome string, cmakeLibSet *map[string]bool,
 	return nil
 }
 
-// change path to relative path, replace PKG_DIR with relative path.
-func preRender(cmake, pkgPath string) (error, string) {
-	// replace {PKG_DIR} variable with relative path.
+// replace {CACHE} {PKG_DIR} {SRC_DIR} to template style
+func preRender(target, pkgHome, packageName string) string {
+	target = strings.Replace(target, "{CACHE}", relativePath(utils.GetCachePath(pkgHome, packageName)), -1)
+	target = strings.Replace(target, "{PKG_DIR}", relativePath(utils.GetPkgPath(pkgHome, packageName)), -1)
+	target = strings.Replace(target, "{SRC_DIR}", relativePath(utils.GetPackageSrcPath(pkgHome, packageName)), -1)
+	return target
+}
+
+//// change path to relative path, replace PKG_DIR with relative path.
+func relativePath(target string) string {
+	//	// replace absolute patg with relative path.
 	if pwd, err := os.Getwd(); err != nil {
-		return err, ""
+		return ""
 	} else {
-		relPkg := strings.TrimPrefix(pkgPath, pwd) // relative pkg path
-		cmake = strings.Replace(cmake, "{PKG_DIR}", relPkg, -1)
-		cmake = strings.TrimPrefix(cmake, string(filepath.Separator))
-		return nil, cmake
+		relPath := strings.TrimPrefix(target, pwd) // relative pkg path
+		relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
+		return relPath
 	}
 }
 
 func genCMake(cmake cmakeDepData, writer io.Writer) error {
-	// convert relative path
-	var err error
-	if err, cmake.InnerCMake = preRender(cmake.InnerCMake, cmake.SrcPath); err != nil {
-		return err
+	if cmake.InnerCMake == "" && cmake.OuterCMake == "" {
+		return nil
 	}
-	if err, cmake.OuterCMake = preRender(cmake.OuterCMake, cmake.SrcPath); err != nil {
-		return err
+	cmake.InnerCMake = preRender(cmake.InnerCMake, cmake.PkgHome, cmake.LibName)
+	cmake.OuterCMake = preRender(cmake.OuterCMake, cmake.PkgHome, cmake.LibName)
+	for i, v := range cmake.InnerBuildCommand {
+		cmake.InnerBuildCommand[i] = preRender(v, cmake.PkgHome, cmake.LibName)
 	}
+	for i, v := range cmake.OuterBuildCommand {
+		cmake.OuterBuildCommand[i] = preRender(v, cmake.PkgHome, cmake.LibName)
+	}
+
 	// render template.
 	if t, err := template.New("cmake").Parse(CmakeToFile); err != nil {
 		return err
