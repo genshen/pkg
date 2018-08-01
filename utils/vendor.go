@@ -15,7 +15,7 @@ const (
 )
 
 const (
-	CMakeDep = "dep.cmake"
+	CMakeDep = "pkg.dep.cmake"
 )
 
 type Pkg struct {

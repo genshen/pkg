@@ -22,7 +22,7 @@ type cmakeDepData struct {
 }
 
 const CmakeToFile = `
-# lib {.LibName}
+# lib {{.LibName}}
 # src: {{.SrcDir}}
 # pkg: {{.PkgDir}}
 # build command:
