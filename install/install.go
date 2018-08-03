@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"errors"
 	"bufio"
+	"strings"
 )
 
 const (
@@ -362,7 +363,9 @@ func createPkgDepCmake(pkgHome, srcHome string, depTree *DependencyTree) error {
 		pkgCMakeLibSet := make(map[string]bool)
 		defer cmakeDepWriter.Close()
 		bufWriter := bufio.NewWriter(cmakeDepWriter)
-		bufWriter.WriteString(PkgCMakeHeader)
+
+		// for all package, set @PkgHome/vendor as vendor home.
+		bufWriter.WriteString(strings.Replace(PkgCMakeHeader, VendorPathReplace, utils.GetVendorPath(pkgHome), -1))
 		if err := cmakeLib(depTree, pkgHome, true, &pkgCMakeLibSet, bufWriter); err != nil {
 			return err
 		}

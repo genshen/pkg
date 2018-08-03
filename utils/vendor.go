@@ -14,8 +14,8 @@ const (
 )
 
 const (
-	PkgFileName   = "pkg.json"
-	CMakeDep = "pkg.dep.cmake"
+	PkgFileName     = "pkg.json"
+	CMakeDep        = "pkg.dep.cmake"
 	CMakeVendorPath = "${VENDOR_PATH}"
 )
 
@@ -58,6 +58,10 @@ type ArchivePackage struct {
 	Package
 }
 
+func GetVendorPath(base string) string {
+	return filepath.Join(base, VendorName);
+}
+
 func GetPackageSrcPath(base, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorSrc, packageName)
 }
@@ -68,7 +72,7 @@ func GetPkgPath(base string, packageName string) (path string) {
 }
 
 // return ${VENDOR_PATH}/pkg/@packageName
-func GetCMakeVendorPkgPath( packageName string) (path string) {
+func GetCMakeVendorPkgPath(packageName string) (path string) {
 	return filepath.Join(CMakeVendorPath, VendorPkg, packageName)
 }
 
