@@ -16,7 +16,7 @@ func buildPkg(dep *DependencyTree, pkgHome string,root bool, builtSet *map[strin
 	log.Println("installing package", dep.Context.PackageName)
 
 	// build children
-	for _, v := range dep.Dependency {
+	for _, v := range dep.Dependencies {
 		if err := buildPkg(v, pkgHome,false, builtSet); err != nil {
 			return err // break loop.
 		}

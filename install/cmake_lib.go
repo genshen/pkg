@@ -49,7 +49,7 @@ func cmakeLib(dep *DependencyTree, pkgHome string, root bool, cmakeLibSet *map[s
 		return nil
 	}
 
-	for _, v := range dep.Dependency {
+	for _, v := range dep.Dependencies {
 		if err := cmakeLib(v, pkgHome, false, cmakeLibSet, writer); err != nil {
 			return err // break loop.
 		}
