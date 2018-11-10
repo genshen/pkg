@@ -3,10 +3,10 @@ package install
 import (
 	"errors"
 	"github.com/genshen/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,7 +22,10 @@ func filesSrc(srcDes string, packageName string, baseUrl string, files map[strin
 
 	// download files:
 	for k, file := range files {
-		log.Printf("downloading %s to %s\n", packageName, filepath.Join(srcDes, file))
+		log.WithFields(log.Fields{
+			"pkg":     packageName,
+			"storage": filepath.Join(srcDes, file),
+		}).Info("downloading dependencies.")
 		res, err := http.Get(utils.UrlJoin(baseUrl, k))
 		if err != nil {
 			return err // todo rollback
@@ -37,7 +40,9 @@ func filesSrc(srcDes string, packageName string, baseUrl string, files map[strin
 			if _, err = io.Copy(fp, res.Body); err != nil {
 				return err // todo fallback
 			}
-			log.Printf("downloaded %s to %s\n", packageName, filepath.Join(srcDes, file))
+			log.WithFields(log.Fields{
+				"pkg": packageName,
+			}).Info("downloaded dependencies.")
 		}
 	}
 	return nil
@@ -50,7 +55,10 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 		return err
 	}
 
-	log.Printf("downloading %s to %s\n", packageName, srcPath)
+	log.WithFields(log.Fields{
+		"pkg":     packageName,
+		"storage": srcPath,
+	}).Info("downloading dependency package.")
 
 	res, err := http.Get(path)
 	if err != nil {
@@ -69,15 +77,24 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 			return err // todo fallback
 		}
 	}
-	log.Printf("downloaded %s to %s\n", packageName, srcPath)
+	log.WithFields(log.Fields{
+		"pkg": packageName,
+	}).Info("downloaded dependency package.")
 
 	// unzip
-	log.Printf("unziping %s to %s\n", zipName, srcPath)
+	log.WithFields(log.Fields{
+		"pkg":     zipName,
+		"storage": srcPath,
+	}).Println("extracting package.")
 	err = utils.Unzip(zipName, srcPath)
 	if err != nil {
 		return err
 	}
-	log.Printf("finished unziping %s to %s\n", zipName, srcPath)
+
+	log.WithFields(log.Fields{
+		"pkg":     zipName,
+		"storage": srcPath,
+	}).Println("finished extracting package.")
 	return nil
 }
 
@@ -94,13 +111,27 @@ func gitSrc(repositoryPrefix string, packageName, gitPath, hash, branch, tag str
 	// init ReferenceName using branch and tag.
 	var referenceName plumbing.ReferenceName
 	if branch != "" { // checkout to a specify branch.
-		log.Printf("cloning %s repository from %s to %s with branch: %s\n", packageName, gitPath, repositoryPrefix, branch)
+		log.WithFields(log.Fields{
+			"pkg":        packageName,
+			"repository": gitPath,
+			"storage":    repositoryPrefix,
+			"branch":     branch,
+		}).Info("cloning repository from remote to local storage.")
 		referenceName = plumbing.ReferenceName("refs/heads/" + branch)
 	} else if tag != "" { // checkout to specify tag.
-		log.Printf("cloning %s repository from %s to %s with tag: %s\n", packageName, gitPath, repositoryPrefix, tag)
+		log.WithFields(log.Fields{
+			"pkg":        packageName,
+			"repository": gitPath,
+			"storage":    repositoryPrefix,
+			"tag":        tag,
+		}).Info("cloning repository from remote to local storage.")
 		referenceName = plumbing.ReferenceName("refs/tags/" + tag)
 	} else {
-		log.Printf("cloning %s repository from %s to %s\n", packageName, gitPath, repositoryPrefix)
+		log.WithFields(log.Fields{
+			"pkg":        packageName,
+			"repository": gitPath,
+			"storage":    repositoryPrefix,
+		}).Info("cloning repository from remote to local storage.")
 	}
 
 	// clone repository.
@@ -117,7 +148,10 @@ func gitSrc(repositoryPrefix string, packageName, gitPath, hash, branch, tag str
 			if err != nil {
 				return err
 			}
-			log.Printf("checkout %s repository to commit: %s\n", packageName, hash)
+			log.WithFields(log.Fields{
+				"pkg":        packageName,
+				"hash":       hash,
+			}).Println("checkout repository to commit.")
 			// do checkout
 			err = worktree.Checkout(&git.CheckoutOptions{
 				Hash: plumbing.NewHash(hash),

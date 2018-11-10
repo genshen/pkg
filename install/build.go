@@ -1,8 +1,8 @@
 package install
 
 import (
-	"log"
 	"github.com/genshen/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 // build pkg from dependency tree.
@@ -13,7 +13,9 @@ func buildPkg(dep *DependencyTree, pkgHome string,root bool, builtSet *map[strin
 		return nil
 	}
 
-	log.Println("installing package", dep.Context.PackageName)
+	log.WithFields(log.Fields{
+		"pkg": dep.Context.PackageName,
+	}).Info("installing package.")
 
 	// build children
 	for _, v := range dep.Dependencies {
@@ -40,6 +42,8 @@ func buildPkg(dep *DependencyTree, pkgHome string,root bool, builtSet *map[strin
 		}
 	}
 	(*builtSet)[dep.Context.PackageName] = true
-	log.Println("package", dep.Context.PackageName, "installed")
+	log.WithFields(log.Fields{
+		"pkg": dep.Context.PackageName,
+	}).Info("package installed.")
 	return nil
 }

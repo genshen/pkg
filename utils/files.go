@@ -1,9 +1,9 @@
 package utils
 
 import (
-	"path/filepath"
-	"os"
 	"fmt"
+	"os"
+	"path/filepath"
 )
 
 func CheckDirectoryLists(dirs ...string) error {

@@ -7,7 +7,6 @@ import (
 	"github.com/genshen/pkg/utils"
 )
 
-
 var versionCommand = &cmds.Command{
 	Name:        "version",
 	Summary:     "print pkg version",

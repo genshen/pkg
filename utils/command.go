@@ -1,12 +1,12 @@
 package utils
 
 import (
-	"strings"
-	"path/filepath"
-	"os"
+	log "github.com/sirupsen/logrus"
 	"io"
+	"os"
 	"os/exec"
-	"log"
+	"path/filepath"
+	"strings"
 )
 
 // run instruction.

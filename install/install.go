@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -24,7 +24,7 @@ const (
 var getCommand = &cmds.Command{
 	Name:        "install",
 	Summary:     "install packages from existed file pkg.json",
-	Description: "install packages(zip,cmake,makefile,.etc format) existed file pkg.json.",
+	Description: "install packages(zip,cmake,makefile,.etc format) existed file pkg.yaml.",
 	CustomFlags: false,
 	HasOptions:  true,
 }
@@ -38,7 +38,7 @@ func init() {
 
 	fs := flag.NewFlagSet("install", flag.ContinueOnError)
 	getCommand.FlagSet = fs
-	getCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute path for file pkg.json")
+	getCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute path for file pkg.yaml")
 	getCommand.FlagSet.Usage = getCommand.Usage // use default usage provided by cmds.Command.
 	getCommand.Runner = &get{PkgHome: pkgHome}
 	cmds.AllCommands = append(cmds.AllCommands, getCommand)
@@ -86,20 +86,37 @@ func (get *get) Run() error {
 	if err := get.installSubDependency(get.PkgHome, &get.DepTree); err != nil {
 		return err
 	}
-	// generating cmake script to include dependency libs.
-	// the generated cmake file is stored at where pkg command runs.
-	// for root package, its srcHome equals to PkgHome.
-	if err := createPkgDepCmake(get.PkgHome, get.PkgHome, &get.DepTree); err != nil {
+	// dump dependency tree to file system
+	log.WithFields(log.Fields{
+		"file": utils.PkgSumFileName,
+	}).Info("saving dependencies tree to file.")
+	if content, err := json.Marshal(get.DepTree); err != nil { // unmarshal json to struct
 		return err
+	} else {
+		if dumpFile, err := os.Create(utils.PkgSumFileName); err != nil {
+			return err
+		} else {
+			dumpFile.Write(content)
+			log.WithFields(log.Fields{
+				"file": utils.PkgSumFileName,
+			}).Info("saved dependencies tree to file.")
+		}
 	}
-
-	// compile and install the source code.
-	// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
-	get.DepTree.DlStatus = DlStatusEmpty
-	pkgBuiltSet := make(map[string]bool)
-	if err := buildPkg(&get.DepTree, get.PkgHome, true, &pkgBuiltSet); err != nil {
-		return err
-	}
+	//
+	//// generating cmake script to include dependency libs.
+	//// the generated cmake file is stored at where pkg command runs.
+	//// for root package, its srcHome equals to PkgHome.
+	//if err := createPkgDepCmake(get.PkgHome, get.PkgHome, &get.DepTree); err != nil {
+	//	return err
+	//}
+	//
+	//// compile and install the source code.
+	//// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
+	//get.DepTree.DlStatus = DlStatusEmpty
+	//pkgBuiltSet := make(map[string]bool)
+	//if err := buildPkg(&get.DepTree, get.PkgHome, true, &pkgBuiltSet); err != nil {
+	//	return err
+	//}
 	return nil
 }
 
@@ -177,7 +194,10 @@ func (get *get) dlSrc(pkgHome string, packages *utils.Packages) ([]*DependencyTr
 			return nil, err
 		} else {
 			status = DlStatusSkip
-			log.Printf("skiped downloading %s in %s, because it already exists.\n", key, srcDes)
+			log.WithFields(log.Fields{
+				"pkg":  key,
+				"src_path": srcDes,
+			}).Info("skipped fetching package, because it already exists.")
 		}
 		// add to dependency tree.
 		dep := DependencyTree{
@@ -208,7 +228,10 @@ func (get *get) dlSrc(pkgHome string, packages *utils.Packages) ([]*DependencyTr
 			return nil, err
 		} else {
 			status = DlStatusSkip
-			log.Printf("skiped downloading %s in %s, because it already exists.\n", key, srcDes)
+			log.WithFields(log.Fields{
+				"pkg":  key,
+				"src_path": srcDes,
+			}).Info("skipped fetching package, because it already exists.")
 		}
 		// add to dependency tree.
 		dep := DependencyTree{
