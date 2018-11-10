@@ -1,7 +1,6 @@
 package install
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,18 +11,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
-)
-
-const (
-	DlStatusEmpty = iota
-	DlStatusSkip
-	DlStatusOk
 )
 
 var getCommand = &cmds.Command{
 	Name:        "install",
-	Summary:     "install packages from existed file pkg.json",
+	Summary:     "install packages from existed file",
 	Description: "install packages(zip,cmake,makefile,.etc format) existed file pkg.yaml.",
 	CustomFlags: false,
 	HasOptions:  true,
@@ -46,25 +38,7 @@ func init() {
 
 type get struct {
 	PkgHome string // the absolute path of root 'pkg.json'
-	DepTree DependencyTree
-}
-
-type DependencyTree struct {
-	Context      DepPkgContext
-	Dependencies []*DependencyTree
-	Builder      []string // outer builder (lib used by others)
-	SelfBuild    []string // inner builder (shows how this package is built)
-	CMakeLib     string   // outer cmake script to add this lib.
-	SelfCMakeLib string   // inner cmake script to add this lib.
-	DlStatus     int
-	IsPkgPackage bool
-}
-
-type DepPkgContext struct {
-	Override         bool
-	CMakeLibOverride bool
-	PackageName      string
-	SrcPath          string
+	DepTree utils.DependencyTree
 }
 
 func (get *get) PreRun() error {
@@ -90,39 +64,19 @@ func (get *get) Run() error {
 	log.WithFields(log.Fields{
 		"file": utils.PkgSumFileName,
 	}).Info("saving dependencies tree to file.")
-	if content, err := json.Marshal(get.DepTree); err != nil { // unmarshal json to struct
-		return err
+	if err := get.DepTree.Dump(utils.PkgSumFileName); err == nil {
+		log.WithFields(log.Fields{
+			"file": utils.PkgSumFileName,
+		}).Info("saved dependencies tree to file.")
 	} else {
-		if dumpFile, err := os.Create(utils.PkgSumFileName); err != nil {
-			return err
-		} else {
-			dumpFile.Write(content)
-			log.WithFields(log.Fields{
-				"file": utils.PkgSumFileName,
-			}).Info("saved dependencies tree to file.")
-		}
+		return err
 	}
-	//
-	//// generating cmake script to include dependency libs.
-	//// the generated cmake file is stored at where pkg command runs.
-	//// for root package, its srcHome equals to PkgHome.
-	//if err := createPkgDepCmake(get.PkgHome, get.PkgHome, &get.DepTree); err != nil {
-	//	return err
-	//}
-	//
-	//// compile and install the source code.
-	//// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
-	//get.DepTree.DlStatus = DlStatusEmpty
-	//pkgBuiltSet := make(map[string]bool)
-	//if err := buildPkg(&get.DepTree, get.PkgHome, true, &pkgBuiltSet); err != nil {
-	//	return err
-	//}
 	return nil
 }
 
 // install dependency in a dependency, installPath is the path of sub-dependency(pkg file location).
 // todo circle detect
-func (get *get) installSubDependency(installPath string, depTree *DependencyTree) error {
+func (get *get) installSubDependency(installPath string, depTree *utils.DependencyTree) error {
 	if pkgJsonPath, err := os.Open(filepath.Join(installPath, utils.PkgFileName)); err == nil { // pkg.json exists.
 		defer pkgJsonPath.Close()
 		if bytes, err := ioutil.ReadAll(pkgJsonPath); err != nil { // read file contents
@@ -166,8 +120,8 @@ func (get *get) installSubDependency(installPath string, depTree *DependencyTree
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: pkgHome is where the file pkg.json is located.
-func (get *get) dlSrc(pkgHome string, packages *utils.Packages) ([]*DependencyTree, error) {
-	var deps []*DependencyTree
+func (get *get) dlSrc(pkgHome string, packages *utils.Packages) ([]*utils.DependencyTree, error) {
+	var deps []*utils.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.
 	// download archive src package.
@@ -183,28 +137,28 @@ func (get *get) dlSrc(pkgHome string, packages *utils.Packages) ([]*DependencyTr
 	// download files src, and add it to build tree.
 	for key, pkg := range packages.FilesPackages {
 		srcDes := utils.GetPackageSrcPath(pkgHome, key)
-		status := DlStatusEmpty
+		status := utils.DlStatusEmpty
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
 			if err := filesSrc(srcDes, key, pkg.Path, pkg.Files); err != nil {
 				// todo rollback, clean src.
 				return nil, err
 			}
-			status = DlStatusOk
+			status = utils.DlStatusOk
 		} else if err != nil {
 			return nil, err
 		} else {
-			status = DlStatusSkip
+			status = utils.DlStatusSkip
 			log.WithFields(log.Fields{
-				"pkg":  key,
+				"pkg":      key,
 				"src_path": srcDes,
 			}).Info("skipped fetching package, because it already exists.")
 		}
 		// add to dependency tree.
-		dep := DependencyTree{
+		dep := utils.DependencyTree{
 			Builder:  pkg.Package.Build[:],
 			DlStatus: status,
 			CMakeLib: pkg.CMakeLib,
-			Context: DepPkgContext{
+			Context: utils.DepPkgContext{
 				Override:         pkg.Override,
 				CMakeLibOverride: pkg.CMakeLibOverride,
 				SrcPath:          srcDes,
@@ -216,29 +170,29 @@ func (get *get) dlSrc(pkgHome string, packages *utils.Packages) ([]*DependencyTr
 	// download git src, and add it to build tree.
 	for key, pkg := range packages.GitPackages {
 		srcDes := utils.GetPackageSrcPath(pkgHome, key)
-		status := DlStatusEmpty
+		status := utils.DlStatusEmpty
 		// check directory, if not exists, then create it.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
 			if err := gitSrc(srcDes, key, pkg.Path, pkg.Hash, pkg.Branch, pkg.Tag); err != nil {
 				// todo rollback, clean src.
 				return nil, err
 			}
-			status = DlStatusOk
+			status = utils.DlStatusOk
 		} else if err != nil {
 			return nil, err
 		} else {
-			status = DlStatusSkip
+			status = utils.DlStatusSkip
 			log.WithFields(log.Fields{
-				"pkg":  key,
+				"pkg":      key,
 				"src_path": srcDes,
 			}).Info("skipped fetching package, because it already exists.")
 		}
 		// add to dependency tree.
-		dep := DependencyTree{
+		dep := utils.DependencyTree{
 			Builder:  pkg.Package.Build[:],
 			DlStatus: status,
 			CMakeLib: pkg.CMakeLib,
-			Context: DepPkgContext{
+			Context: utils.DepPkgContext{
 				Override:         pkg.Override,
 				CMakeLibOverride: pkg.CMakeLibOverride,
 				SrcPath:          srcDes,
@@ -248,37 +202,4 @@ func (get *get) dlSrc(pkgHome string, packages *utils.Packages) ([]*DependencyTr
 		deps = append(deps, &dep)
 	}
 	return deps, nil
-}
-
-func createPkgDepCmake(pkgHome, srcHome string, depTree *DependencyTree) error {
-	// build dep cmake file only for pkg based project.
-	if !depTree.IsPkgPackage {
-		return nil
-	}
-
-	// create cmake dep file for this package.
-	if cmakeDepWriter, err := os.Create(filepath.Join(srcHome, utils.CMakeDep)); err != nil {
-		return err
-	} else {
-		pkgCMakeLibSet := make(map[string]bool)
-		defer cmakeDepWriter.Close()
-		bufWriter := bufio.NewWriter(cmakeDepWriter)
-
-		// for all package, set @PkgHome/vendor as vendor home.
-		bufWriter.WriteString(strings.Replace(PkgCMakeHeader, VendorPathReplace, utils.GetVendorPath(pkgHome), -1))
-		if err := cmakeLib(depTree, pkgHome, true, &pkgCMakeLibSet, bufWriter); err != nil {
-			return err
-		}
-		bufWriter.Flush()
-		log.Println("generated cmake for package", depTree.Context.PackageName)
-	}
-	// create cmake dep file for all its sub/child package.
-	for _, v := range depTree.Dependencies {
-		// for all non-root package, the srcHome is pkgHome/vendor/src/@packageName
-		err := createPkgDepCmake(pkgHome, utils.GetPackageSrcPath(pkgHome, v.Context.PackageName), v)
-		if err != nil {
-			return err // break loop.
-		}
-	}
-	return nil
 }
