@@ -1,4 +1,4 @@
-package fetch
+package load
 
 import (
 	"flag"
@@ -6,9 +6,9 @@ import (
 )
 
 var fetchCommand = &cmds.Command{
-	Name:        "fetch",
-	Summary:     "fetch a package from remote",
-	Description: "fetch a cpp package(zip,cmake,makefile,.etc format) from remote.",
+	Name:        "load",
+	Summary:     "load dependency packages from tarball file",
+	Description: "import and extract dependency packages from tarball file (.tar) specified by a file path",
 	CustomFlags: false,
 	HasOptions:  true,
 }
@@ -19,21 +19,21 @@ var (
 )
 
 func init() {
-	fetchCommand.Runner = &get{}
-	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
+	fetchCommand.Runner = &load{}
+	fs := flag.NewFlagSet("load", flag.ContinueOnError)
 	fetchCommand.FlagSet = fs
-	fetchCommand.FlagSet.StringVar(&url, "url", "", "addr")
-	fetchCommand.FlagSet.StringVar(&output, "o", "", "output directory")
+	fetchCommand.FlagSet.StringVar(&url, "f", "", "tarball file path")
+	// fetchCommand.FlagSet.StringVar(&output, "o", "", "output directory")
 	fetchCommand.FlagSet.Usage = fetchCommand.Usage // use default usage provided by cmds.Command.
 	cmds.AllCommands = append(cmds.AllCommands, fetchCommand)
 }
 
-type get struct{}
+type load struct{}
 
-func (v *get) PreRun() error {
+func (v *load) PreRun() error {
 	return nil
 }
 
-func (v *get) Run() error {
+func (v *load) Run() error {
 	return nil
 }

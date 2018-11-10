@@ -14,9 +14,9 @@ import (
 )
 
 var getCommand = &cmds.Command{
-	Name:        "install",
-	Summary:     "install packages from existed file",
-	Description: "install packages(zip,cmake,makefile,.etc format) existed file pkg.yaml.",
+	Name:        "fetch",
+	Summary:     "fetch packages from remote based an existed file " + utils.PkgFileName,
+	Description: "fetch packages(zip,cmake,makefile,.etc format) existed file " + utils.PkgFileName + ".",
 	CustomFlags: false,
 	HasOptions:  true,
 }
@@ -28,20 +28,20 @@ func init() {
 		pwd = "./"
 	}
 
-	fs := flag.NewFlagSet("install", flag.ContinueOnError)
+	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
 	getCommand.FlagSet = fs
-	getCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute path for file pkg.yaml")
+	getCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute path for file "+utils.PkgFileName)
 	getCommand.FlagSet.Usage = getCommand.Usage // use default usage provided by cmds.Command.
-	getCommand.Runner = &get{PkgHome: pkgHome}
+	getCommand.Runner = &fetch{PkgHome: pkgHome}
 	cmds.AllCommands = append(cmds.AllCommands, getCommand)
 }
 
-type get struct {
+type fetch struct {
 	PkgHome string // the absolute path of root 'pkg.json'
 	DepTree utils.DependencyTree
 }
 
-func (get *get) PreRun() error {
+func (get *fetch) PreRun() error {
 	jsonPath := filepath.Join(get.PkgHome, utils.PkgFileName)
 	// check pkg.json file existence.
 	if fileInfo, err := os.Stat(jsonPath); err != nil {
@@ -55,7 +55,7 @@ func (get *get) PreRun() error {
 	// return utils.CheckVendorPath(pkgFilePath)
 }
 
-func (get *get) Run() error {
+func (get *fetch) Run() error {
 	// build pkg.json and download source code (json file must exists).
 	if err := get.installSubDependency(get.PkgHome, &get.DepTree); err != nil {
 		return err
@@ -71,12 +71,13 @@ func (get *get) Run() error {
 	} else {
 		return err
 	}
+	log.Info("fetch succeeded.")
 	return nil
 }
 
 // install dependency in a dependency, installPath is the path of sub-dependency(pkg file location).
 // todo circle detect
-func (get *get) installSubDependency(installPath string, depTree *utils.DependencyTree) error {
+func (get *fetch) installSubDependency(installPath string, depTree *utils.DependencyTree) error {
 	if pkgJsonPath, err := os.Open(filepath.Join(installPath, utils.PkgFileName)); err == nil { // pkg.json exists.
 		defer pkgJsonPath.Close()
 		if bytes, err := ioutil.ReadAll(pkgJsonPath); err != nil { // read file contents
@@ -120,7 +121,7 @@ func (get *get) installSubDependency(installPath string, depTree *utils.Dependen
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: pkgHome is where the file pkg.json is located.
-func (get *get) dlSrc(pkgHome string, packages *utils.Packages) ([]*utils.DependencyTree, error) {
+func (get *fetch) dlSrc(pkgHome string, packages *utils.Packages) ([]*utils.DependencyTree, error) {
 	var deps []*utils.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.

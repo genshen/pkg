@@ -65,5 +65,3 @@ func DepTreeRecover(deps *DependencyTree, filename string) (error) {
 		}
 	}
 }
-
-
