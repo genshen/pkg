@@ -14,49 +14,49 @@ const (
 )
 
 const (
-	PkgFileName     = "pkg.json"
-	PkgSumFileName     = "pkg.sum.json"
+	PkgFileName     = "pkg.yaml"
+	PkgSumFileName  = "pkg.sum.json"
 	CMakeDep        = "pkg.dep.cmake"
 	CMakeVendorPath = "${VENDOR_PATH}"
 )
 
 type Pkg struct {
-	Command   map[string]string   `json:"command"`
-	Compilers map[string]string   `json:"compilers"`
-	Packages  Packages            `json:"packages"`
-	Build     map[string][]string `json:"build"` // todo platform
-	CMakeLib  string              `json:"cmake_lib"`
+	Command   map[string]string   `yaml:"command"`
+	Compilers map[string]string   `yaml:"compilers"`
+	Packages  Packages            `yaml:"packages"`
+	Build     map[string][]string `yaml:"build"`
+	CMakeLib  string              `yaml:"cmake_lib"`
 }
 
 type Packages struct {
-	GitPackages     map[string]GitPackage     `json:"git"`
-	FilesPackages   map[string]FilesPackage   `json:"files"`
-	ArchivePackages map[string]ArchivePackage `json:"archive"`
+	GitPackages     map[string]GitPackage     `yaml:"git"`
+	FilesPackages   map[string]FilesPackage   `yaml:"files"`
+	ArchivePackages map[string]ArchivePackage `yaml:"archive"`
 }
 
 type Package struct {
-	Path     string `json:"path"`
-	Override bool   `json:"override"` // override package self build.
-	//	Dependencies []string          `json:"dependencies"`
-	Build            []string `json:"build"`
-	CMakeLib         string   `json:"cmake_lib"`
-	CMakeLibOverride bool     `json:"cmake_lib_override"`
+	Path     string `yaml:"path"`
+	Override bool   `yaml:"override"` // override package self build.
+	//	Dependencies []string          `yaml:"dependencies"`
+	Build            []string `yaml:"build"`
+	CMakeLib         string   `yaml:"cmake_lib"`
+	CMakeLibOverride bool     `yaml:"cmake_lib_override"`
 }
 
 type GitPackage struct {
-	Package
-	Tag    string `json:"tag"`    // git tag
-	Branch string `json:"branch"` // git branch
-	Hash   string `json:"hash"`   // git commit hash
+	Package `yaml:",inline"`
+	Tag     string `yaml:"tag"`    // git tag
+	Branch  string `yaml:"branch"` // git branch
+	Hash    string `yaml:"hash"`   // git commit hash
 }
 
 type FilesPackage struct {
-	Package
-	Files map[string]string `json:"files"`
+	Package `yaml:",inline"`
+	Files   map[string]string `yaml:"files"`
 }
 
 type ArchivePackage struct {
-	Package
+	Package `yaml:",inline"`
 }
 
 func GetVendorPath(base string) string {

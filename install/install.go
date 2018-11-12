@@ -75,8 +75,9 @@ func (b *install) Run() error {
 	return nil
 }
 
+// pkgHome is always pkg root.
 func createPkgDepCmake(pkgHome, srcHome string, depTree *utils.DependencyTree) error {
-	// build dep cmake file only for pkg based project.
+	// create dep cmake file only for pkg based project.
 	if !depTree.IsPkgPackage {
 		return nil
 	}

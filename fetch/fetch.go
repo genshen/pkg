@@ -1,12 +1,12 @@
 package install
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -84,9 +84,15 @@ func (get *fetch) installSubDependency(installPath string, depTree *utils.Depend
 			return err
 		} else {
 			pkgs := utils.Pkg{}
-			if err := json.Unmarshal(bytes, &pkgs); err != nil { // unmarshal json to struct
+			if err := yaml.Unmarshal(bytes, &pkgs); err != nil { // unmarshal yaml to struct
 				return err
 			}
+			d, err := yaml.Marshal(&pkgs)
+			if err != nil {
+				log.Fatalf("error: %v", err)
+			}
+			fmt.Printf("--- m dump:\n%s\n\n", string(d))
+
 			// add to build this package.
 			// only all its dependency packages are downloaded, can this package be built.
 			if build, ok := pkgs.Build[runtime.GOOS]; ok {
