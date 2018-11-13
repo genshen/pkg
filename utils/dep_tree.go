@@ -28,8 +28,8 @@ type DependencyTree struct {
 }
 
 type DepPkgContext struct {
-	PackageName      string
-	SrcPath          string
+	PackageName string
+	SrcPath     string
 }
 
 // marshal dependency tree content to a json file.
@@ -60,6 +60,21 @@ func DepTreeRecover(deps *DependencyTree, filename string) (error) {
 				return err
 			}
 			return nil
+		}
+	}
+}
+
+// traversal all tree node with pre-order.
+func (depTree *DependencyTree) Traversal(callback func(*DependencyTree) bool) {
+	if r := callback(depTree); r == false {
+		return // if return value of callback is false, then the traversal will be break.
+	}
+	// if this node has children
+	if depTree.Dependencies == nil || len(depTree.Dependencies) == 0 {
+		return
+	} else {
+		for _, d := range depTree.Dependencies {
+			d.Traversal(callback)
 		}
 	}
 }

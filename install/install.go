@@ -2,6 +2,7 @@ package install
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/genshen/cmds"
@@ -21,23 +22,29 @@ var buildCommand = &cmds.Command{
 }
 
 func init() {
-	var pkgHome, pwd string
+	var pwd string
 	var err error
 	if pwd, err = os.Getwd(); err != nil {
 		pwd = "./"
 	}
 
-	buildCommand.Runner = &install{}
+	var cmd install
 	fs := flag.NewFlagSet("install", flag.ContinueOnError)
 	buildCommand.FlagSet = fs
-	buildCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute or relative path for pkg home.")
+	buildCommand.FlagSet.StringVar(&cmd.PkgHome, "p", pwd, "absolute or relative path for pkg home.")
+	buildCommand.FlagSet.StringVar(&cmd.PkgName, "pkg", "", "install a specific package, default is all packages.")
+	buildCommand.FlagSet.BoolVar(&cmd.Skipdep, "skipdep", false,
+		"skip to build & install dependency packages, only used in installing a specific package. ")
+
 	buildCommand.FlagSet.Usage = buildCommand.Usage // use default usage provided by cmds.Command.
-	buildCommand.Runner = &install{PkgHome: pkgHome}
+	buildCommand.Runner = &cmd
 	cmds.AllCommands = append(cmds.AllCommands, buildCommand)
 }
 
 type install struct {
 	PkgHome string
+	PkgName string
+	Skipdep bool
 	DepTree utils.DependencyTree
 }
 
@@ -71,10 +78,35 @@ func (b *install) Run() error {
 	}
 
 	// compile and install the source code.
-	// besides, you can just use source code in your project (e.g. use cmake package in cmake project).
-	b.DepTree.DlStatus = utils.DlStatusEmpty
+	// besides, you can also just use source code in your project (e.g. use cmake package in cmake project).
+	var options = struct {
+		DepTree  *utils.DependencyTree
+		SkipDeps bool
+		root     bool
+	}{&b.DepTree, false, true}
+
+	if b.PkgName != "" { // build a specific package, not all packages.
+		// travel the tree to find the package.
+		// todo check loop dependency.
+		var pkg *utils.DependencyTree
+		b.DepTree.Traversal(func(tree *utils.DependencyTree) bool {
+			if tree.Context.PackageName == b.PkgName {
+				pkg = tree // save the matched tree node.
+				return false
+			}
+			return true
+		})
+		if pkg == nil {
+			return errors.New(fmt.Sprintf("package %s not found", b.PkgName))
+		}
+		options.DepTree = pkg
+		options.SkipDeps = b.Skipdep
+		options.root = false
+	} else {
+		b.DepTree.DlStatus = utils.DlStatusEmpty // set DlStatusEmpty to skip root package.
+	}
 	pkgBuiltSet := make(map[string]bool)
-	if err := buildPkg(&b.DepTree, b.PkgHome, true, &pkgBuiltSet); err != nil {
+	if err := buildPkg(options.DepTree, b.PkgHome, options.root, options.SkipDeps, &pkgBuiltSet); err != nil {
 		return err
 	}
 
