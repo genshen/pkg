@@ -22,20 +22,21 @@ var getCommand = &cmds.Command{
 }
 
 func init() {
-	var pkgHome, pwd string
+	var pwd string
 	//var absRoot bool
 	var err error
 	if pwd, err = os.Getwd(); err != nil {
 		pwd = "./"
 	}
 
+	var f fetch
 	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
 	getCommand.FlagSet = fs
 	//getCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
-	getCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute or relative path for file "+utils.PkgFileName)
+	getCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+utils.PkgFileName)
 	// todo make pkgHome abs path anyway.
 	getCommand.FlagSet.Usage = getCommand.Usage // use default usage provided by cmds.Command.
-	getCommand.Runner = &fetch{PkgHome: pkgHome}
+	getCommand.Runner = &f
 	cmds.AllCommands = append(cmds.AllCommands, getCommand)
 }
 
@@ -90,11 +91,6 @@ func (get *fetch) installSubDependency(installPath string, depTree *utils.Depend
 			if err := yaml.Unmarshal(bytes, &pkgs); err != nil { // unmarshal yaml to struct
 				return err
 			}
-			d, err := yaml.Marshal(&pkgs)
-			if err != nil {
-				log.Fatalf("error: %v", err)
-			}
-			fmt.Printf("--- m dump:\n%s\n\n", string(d))
 
 			// add to build this package.
 			// only all its dependency packages are downloaded, can this package be built.
@@ -169,8 +165,8 @@ func (get *fetch) dlSrc(pkgHome string, packages *utils.Packages) ([]*utils.Depe
 			DlStatus: status,
 			CMakeLib: pkg.CMakeLib,
 			Context: utils.DepPkgContext{
-				SrcPath:          utils.GetPackageSrcPath("", key), // make it relative path.
-				PackageName:      key,
+				SrcPath:     utils.GetPackageSrcPath("", key), // make it relative path.
+				PackageName: key,
 			},
 		}
 		deps = append(deps, &dep)
@@ -201,8 +197,8 @@ func (get *fetch) dlSrc(pkgHome string, packages *utils.Packages) ([]*utils.Depe
 			DlStatus: status,
 			CMakeLib: pkg.CMakeLib,
 			Context: utils.DepPkgContext{
-				SrcPath:          utils.GetPackageSrcPath("", key), // make it relative path.
-				PackageName:      key,
+				SrcPath:     utils.GetPackageSrcPath("", key), // make it relative path.
+				PackageName: key,
 			},
 		}
 		deps = append(deps, &dep)
