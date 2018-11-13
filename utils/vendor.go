@@ -15,7 +15,7 @@ const (
 
 const (
 	PkgFileName     = "pkg.yaml"
-	PkgSumFileName  = "pkg.sum.json"
+	PkgSumFileName  = VendorName + "/pkg.sum.json"
 	CMakeDep        = "pkg.dep.cmake"
 	CMakeVendorPath = "${VENDOR_PATH}"
 )

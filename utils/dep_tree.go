@@ -28,8 +28,6 @@ type DependencyTree struct {
 }
 
 type DepPkgContext struct {
-	Override         bool
-	CMakeLibOverride bool
 	PackageName      string
 	SrcPath          string
 }

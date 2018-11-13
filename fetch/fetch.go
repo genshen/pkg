@@ -23,6 +23,7 @@ var getCommand = &cmds.Command{
 
 func init() {
 	var pkgHome, pwd string
+	//var absRoot bool
 	var err error
 	if pwd, err = os.Getwd(); err != nil {
 		pwd = "./"
@@ -30,14 +31,16 @@ func init() {
 
 	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
 	getCommand.FlagSet = fs
-	getCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute path for file "+utils.PkgFileName)
+	//getCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
+	getCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute or relative path for file "+utils.PkgFileName)
+	// todo make pkgHome abs path anyway.
 	getCommand.FlagSet.Usage = getCommand.Usage // use default usage provided by cmds.Command.
 	getCommand.Runner = &fetch{PkgHome: pkgHome}
 	cmds.AllCommands = append(cmds.AllCommands, getCommand)
 }
 
 type fetch struct {
-	PkgHome string // the absolute path of root 'pkg.json'
+	PkgHome string // the absolute path of root 'pkg.json' form command path.
 	DepTree utils.DependencyTree
 }
 
@@ -166,9 +169,7 @@ func (get *fetch) dlSrc(pkgHome string, packages *utils.Packages) ([]*utils.Depe
 			DlStatus: status,
 			CMakeLib: pkg.CMakeLib,
 			Context: utils.DepPkgContext{
-				Override:         pkg.Override,
-				CMakeLibOverride: pkg.CMakeLibOverride,
-				SrcPath:          srcDes,
+				SrcPath:          utils.GetPackageSrcPath("", key), // make it relative path.
 				PackageName:      key,
 			},
 		}
@@ -200,9 +201,7 @@ func (get *fetch) dlSrc(pkgHome string, packages *utils.Packages) ([]*utils.Depe
 			DlStatus: status,
 			CMakeLib: pkg.CMakeLib,
 			Context: utils.DepPkgContext{
-				Override:         pkg.Override,
-				CMakeLibOverride: pkg.CMakeLibOverride,
-				SrcPath:          srcDes,
+				SrcPath:          utils.GetPackageSrcPath("", key), // make it relative path.
 				PackageName:      key,
 			},
 		}

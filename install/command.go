@@ -1,4 +1,4 @@
-package utils
+package install
 
 import (
 	log "github.com/sirupsen/logrus"
@@ -18,26 +18,13 @@ func RunIns(pkgHome, packageName, srcPath, ins string) error {
 	if len(insTriple) == 3 {
 		switch insTriple[0] {
 		case "CP":
-			var des string
-			if insTriple[2] == "{INCLUDE}" {
-				includeDir := GetIncludePath(pkgHome)
-				if err := CheckDir(includeDir); err != nil { // check include dir exist.
-					return err
-				}
-				des = filepath.Join(GetIncludePath(pkgHome), insTriple[1]) // copy with the same name.
-			} else {
-				des = filepath.Join(srcPath, insTriple[2]) //todo make sure parent dir exists.
-			}
 			// run copy.
-			if err := runInsCopy(filepath.Join(srcPath, insTriple[1]), des); err != nil {
+			if err := runInsCopy(filepath.Join(srcPath, insTriple[1]), insTriple[2]); err != nil {
 				return err
 			}
 
 		case "RUN":
 			cacheDir := insTriple[1] // fixme path not contains space.
-			if insTriple[1] == "{CACHE}" {
-				cacheDir = GetCachePath(pkgHome, packageName)
-			}
 			// remove old files.
 			if _, err := os.Stat(cacheDir); err != nil {
 				if !os.IsNotExist(err) {
@@ -53,12 +40,9 @@ func RunIns(pkgHome, packageName, srcPath, ins string) error {
 			}
 			// create command
 			script := insTriple[2]
-			script = strings.Replace(script, "{SRC_DIR}", srcPath, -1)
-			script = strings.Replace(script, "{PKG_DIR}", GetPkgPath(pkgHome, packageName), -1)
-
 			log.Println("running [", script, "] in directory", cacheDir)
 
-			cmd := exec.Command("sh", "-c", script) // todo only for linux OS.
+			cmd := exec.Command("sh", "-c", script) // todo only for linux OS or OSX.
 			cmd.Dir = cacheDir
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func CheckDirectoryLists(dirs ...string) error {
@@ -29,4 +30,13 @@ func CheckDir(path string) error {
 		return fmt.Errorf("%s is not a directory", path)
 	}
 	return nil
+}
+
+//// change path to relative path, replace PKG_DIR with relative path.
+func RelativePath(base, target string) string {
+	//	// replace absolute path with relative path.
+	relPath := strings.TrimPrefix(target, base) // relative pkg path
+	relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
+	return relPath
+
 }

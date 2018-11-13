@@ -30,7 +30,7 @@ func init() {
 	buildCommand.Runner = &install{}
 	fs := flag.NewFlagSet("install", flag.ContinueOnError)
 	buildCommand.FlagSet = fs
-	buildCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute path for pkg home.")
+	buildCommand.FlagSet.StringVar(&pkgHome, "p", pwd, "absolute or relative path for pkg home.")
 	buildCommand.FlagSet.Usage = buildCommand.Usage // use default usage provided by cmds.Command.
 	buildCommand.Runner = &install{PkgHome: pkgHome}
 	cmds.AllCommands = append(cmds.AllCommands, buildCommand)
@@ -49,6 +49,12 @@ func (b *install) PreRun() error {
 	} else if fileInfo.IsDir() {
 		return fmt.Errorf("%s is not a file", utils.PkgFileName)
 	}
+	// check vendor files
+	includeDir := utils.GetIncludePath(b.PkgHome)
+	if err := utils.CheckDir(includeDir); err != nil { // check include dir exist.
+		return err
+	}
+
 	// resolve sum file.
 	if err := utils.DepTreeRecover(&b.DepTree, pkgSumPath); err != nil {
 		return err
