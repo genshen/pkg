@@ -23,5 +23,8 @@ FROM alpine:latest
 
 # Copy only build result from previous step to new lightweight image
 COPY --from=builder /go/src/github.com/genshen/pkg/pkg /usr/local/bin/pkg
+#ADD --chown=root:root https://github.com/genshen/pkg/releases/download/v0.2.0-beta/pkg-linux-amd64 /usr/local/bin/pkg
+
+RUN sudo chmod 755 /usr/local/bin/pkg & sudo apk add --no-cache cmake
 
 CMD ["/bin/ash"]
