@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var exportCommand = &cmds.Command{
@@ -44,11 +45,11 @@ type export struct {
 }
 
 func (e *export) PreRun() error {
-	if e.output == "" {
-		return errors.New("flag out is required")
-	}
 	if e.home == "" {
 		return errors.New("flag home is required")
+	}
+	if e.output == "" {
+		e.output = pkg.VendorName + "-" + time.Now().Format("20060102-150405.999999") + ".tar"
 	}
 	// file path check
 	pkgFilePath := filepath.Join(e.home, pkg.PkgFileName)
