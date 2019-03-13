@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/genshen/cmds"
-	"github.com/genshen/pkg/utils"
+	"github.com/genshen/pkg"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -15,8 +15,8 @@ import (
 
 var getCommand = &cmds.Command{
 	Name:        "fetch",
-	Summary:     "fetch packages from remote based an existed file " + utils.PkgFileName,
-	Description: "fetch packages(zip,cmake,makefile,.etc format) existed file " + utils.PkgFileName + ".",
+	Summary:     "fetch packages from remote based an existed file " + pkg.PkgFileName,
+	Description: "fetch packages(zip,cmake,makefile,.etc format) existed file " + pkg.PkgFileName + ".",
 	CustomFlags: false,
 	HasOptions:  true,
 }
@@ -33,7 +33,7 @@ func init() {
 	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
 	getCommand.FlagSet = fs
 	//getCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
-	getCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+utils.PkgFileName)
+	getCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+pkg.PkgFileName)
 	// todo make pkgHome abs path anyway.
 	getCommand.FlagSet.Usage = getCommand.Usage // use default usage provided by cmds.Command.
 	getCommand.Runner = &f
@@ -42,21 +42,21 @@ func init() {
 
 type fetch struct {
 	PkgHome string // the absolute path of root 'pkg.json' form command path.
-	DepTree utils.DependencyTree
+	DepTree pkg.DependencyTree
 }
 
 func (get *fetch) PreRun() error {
-	jsonPath := filepath.Join(get.PkgHome, utils.PkgFileName)
+	jsonPath := filepath.Join(get.PkgHome, pkg.PkgFileName)
 	// check pkg.json file existence.
 	if fileInfo, err := os.Stat(jsonPath); err != nil {
 		return err
 	} else if fileInfo.IsDir() {
-		return fmt.Errorf("%s is not a file", utils.PkgFileName)
+		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
 	}
 
 	return nil
 	// check .vendor and some related directory, if not exists, create it.
-	// return utils.CheckVendorPath(pkgFilePath)
+	// return pkg.CheckVendorPath(pkgFilePath)
 }
 
 func (get *fetch) Run() error {
@@ -65,12 +65,9 @@ func (get *fetch) Run() error {
 		return err
 	}
 	// dump dependency tree to file system
-	log.WithFields(log.Fields{
-		"file": utils.PkgSumFileName,
-	}).Info("saving dependencies tree to file.")
-	if err := get.DepTree.Dump(utils.PkgSumFileName); err == nil {
+	if err := get.DepTree.Dump(pkg.PkgSumFileName); err == nil {
 		log.WithFields(log.Fields{
-			"file": utils.PkgSumFileName,
+			"file": pkg.PkgSumFileName,
 		}).Info("saved dependencies tree to file.")
 	} else {
 		return err
@@ -81,13 +78,13 @@ func (get *fetch) Run() error {
 
 // install dependency in a dependency, installPath is the path of sub-dependency(pkg file location).
 // todo circle detect
-func (get *fetch) installSubDependency(installPath string, depTree *utils.DependencyTree) error {
-	if pkgJsonPath, err := os.Open(filepath.Join(installPath, utils.PkgFileName)); err == nil { // pkg.json exists.
+func (get *fetch) installSubDependency(installPath string, depTree *pkg.DependencyTree) error {
+	if pkgJsonPath, err := os.Open(filepath.Join(installPath, pkg.PkgFileName)); err == nil { // pkg.json exists.
 		defer pkgJsonPath.Close()
 		if bytes, err := ioutil.ReadAll(pkgJsonPath); err != nil { // read file contents
 			return err
 		} else {
-			pkgs := utils.Pkg{}
+			pkgs := pkg.Pkg{}
 			if err := yaml.Unmarshal(bytes, &pkgs); err != nil { // unmarshal yaml to struct
 				return err
 			}
@@ -126,13 +123,13 @@ func (get *fetch) installSubDependency(installPath string, depTree *utils.Depend
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: pkgHome is where the file pkg.json is located.
-func (get *fetch) dlSrc(pkgHome string, packages *utils.Packages) ([]*utils.DependencyTree, error) {
-	var deps []*utils.DependencyTree
+func (get *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.DependencyTree, error) {
+	var deps []*pkg.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.
 	// download archive src package.
-	for key, pkg := range packages.ArchivePackages {
-		if err := archiveSrc(pkgHome, key, pkg.Path); err != nil {
+	for key, archPkg := range packages.ArchivePackages {
+		if err := archiveSrc(pkgHome, key, archPkg.Path); err != nil {
 			// todo rollback, clean src.
 			return nil, err
 		} else {
@@ -141,63 +138,63 @@ func (get *fetch) dlSrc(pkgHome string, packages *utils.Packages) ([]*utils.Depe
 		}
 	}
 	// download files src, and add it to build tree.
-	for key, pkg := range packages.FilesPackages {
-		srcDes := utils.GetPackageSrcPath(pkgHome, key)
-		status := utils.DlStatusEmpty
+	for key, filePkg := range packages.FilesPackages {
+		srcDes := pkg.GetPackageSrcPath(pkgHome, key)
+		status := pkg.DlStatusEmpty
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
-			if err := filesSrc(srcDes, key, pkg.Path, pkg.Files); err != nil {
+			if err := filesSrc(srcDes, key, filePkg.Path, filePkg.Files); err != nil {
 				// todo rollback, clean src.
 				return nil, err
 			}
-			status = utils.DlStatusOk
+			status = pkg.DlStatusOk
 		} else if err != nil {
 			return nil, err
 		} else {
-			status = utils.DlStatusSkip
+			status = pkg.DlStatusSkip
 			log.WithFields(log.Fields{
 				"pkg":      key,
 				"src_path": srcDes,
 			}).Info("skipped fetching package, because it already exists.")
 		}
 		// add to dependency tree.
-		dep := utils.DependencyTree{
-			Builder:  pkg.Package.Build[:],
+		dep := pkg.DependencyTree{
+			Builder:  filePkg.Package.Build[:],
 			DlStatus: status,
-			CMakeLib: pkg.CMakeLib,
-			Context: utils.DepPkgContext{
-				SrcPath:     utils.GetPackageSrcPath("", key), // make it relative path.
+			CMakeLib: filePkg.CMakeLib,
+			Context: pkg.DepPkgContext{
+				SrcPath:     pkg.GetPackageSrcPath("", key), // make it relative path.
 				PackageName: key,
 			},
 		}
 		deps = append(deps, &dep)
 	}
 	// download git src, and add it to build tree.
-	for key, pkg := range packages.GitPackages {
-		srcDes := utils.GetPackageSrcPath(pkgHome, key)
-		status := utils.DlStatusEmpty
+	for key, gitPkg := range packages.GitPackages {
+		srcDes := pkg.GetPackageSrcPath(pkgHome, key)
+		status := pkg.DlStatusEmpty
 		// check directory, if not exists, then create it.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
-			if err := gitSrc(srcDes, key, pkg.Path, pkg.Hash, pkg.Branch, pkg.Tag); err != nil {
+			if err := gitSrc(srcDes, key, gitPkg.Path, gitPkg.Hash, gitPkg.Branch, gitPkg.Tag); err != nil {
 				// todo rollback, clean src.
 				return nil, err
 			}
-			status = utils.DlStatusOk
+			status = pkg.DlStatusOk
 		} else if err != nil {
 			return nil, err
 		} else {
-			status = utils.DlStatusSkip
+			status = pkg.DlStatusSkip
 			log.WithFields(log.Fields{
 				"pkg":      key,
 				"src_path": srcDes,
 			}).Info("skipped fetching package, because it already exists.")
 		}
 		// add to dependency tree.
-		dep := utils.DependencyTree{
-			Builder:  pkg.Package.Build[:],
+		dep := pkg.DependencyTree{
+			Builder:  gitPkg.Package.Build[:],
 			DlStatus: status,
-			CMakeLib: pkg.CMakeLib,
-			Context: utils.DepPkgContext{
-				SrcPath:     utils.GetPackageSrcPath("", key), // make it relative path.
+			CMakeLib: gitPkg.CMakeLib,
+			Context: pkg.DepPkgContext{
+				SrcPath:     pkg.GetPackageSrcPath("", key), // make it relative path.
 				PackageName: key,
 			},
 		}

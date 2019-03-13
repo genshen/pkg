@@ -2,7 +2,7 @@
  * created by genshen on 2018/11/10
  */
 
-package utils
+package pkg
 
 import (
 	"encoding/json"

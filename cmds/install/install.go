@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/genshen/cmds"
-	"github.com/genshen/pkg/utils"
+	"github.com/genshen/pkg"
 	"log"
 	"os"
 	"path/filepath"
@@ -45,25 +45,25 @@ type install struct {
 	PkgHome string
 	PkgName string
 	Skipdep bool
-	DepTree utils.DependencyTree
+	DepTree pkg.DependencyTree
 }
 
 func (b *install) PreRun() error {
 	// check sum file
-	pkgSumPath := filepath.Join(b.PkgHome, utils.PkgSumFileName)
+	pkgSumPath := filepath.Join(b.PkgHome, pkg.PkgSumFileName)
 	if fileInfo, err := os.Stat(pkgSumPath); err != nil {
 		return fmt.Errorf(`stat file %s failed, make sure you have run "pkg install"; error: %s`, pkgSumPath, err)
 	} else if fileInfo.IsDir() {
-		return fmt.Errorf("%s is not a file", utils.PkgFileName)
+		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
 	}
 	// check vendor files
-	includeDir := utils.GetIncludePath(b.PkgHome)
-	if err := utils.CheckDir(includeDir); err != nil { // check include dir exist.
+	includeDir := pkg.GetIncludePath(b.PkgHome)
+	if err := pkg.CheckDir(includeDir); err != nil { // check include dir exist.
 		return err
 	}
 
 	// resolve sum file.
-	if err := utils.DepTreeRecover(&b.DepTree, pkgSumPath); err != nil {
+	if err := pkg.DepTreeRecover(&b.DepTree, pkgSumPath); err != nil {
 		return err
 	}
 	return nil
@@ -80,7 +80,7 @@ func (b *install) Run() error {
 	// compile and install the source code.
 	// besides, you can also just use source code in your project (e.g. use cmake package in cmake project).
 	var options = struct {
-		DepTree  *utils.DependencyTree
+		DepTree  *pkg.DependencyTree
 		SkipDeps bool
 		root     bool
 	}{&b.DepTree, false, true}
@@ -88,22 +88,22 @@ func (b *install) Run() error {
 	if b.PkgName != "" { // build a specific package, not all packages.
 		// travel the tree to find the package.
 		// todo check loop dependency.
-		var pkg *utils.DependencyTree
-		b.DepTree.Traversal(func(tree *utils.DependencyTree) bool {
+		var depTree *pkg.DependencyTree = nil
+		b.DepTree.Traversal(func(tree *pkg.DependencyTree) bool {
 			if tree.Context.PackageName == b.PkgName {
-				pkg = tree // save the matched tree node.
+				depTree = tree // save the matched tree node.
 				return false
 			}
 			return true
 		})
-		if pkg == nil {
+		if depTree == nil {
 			return errors.New(fmt.Sprintf("package %s not found", b.PkgName))
 		}
-		options.DepTree = pkg
+		options.DepTree = depTree
 		options.SkipDeps = b.Skipdep
 		options.root = false
 	} else {
-		b.DepTree.DlStatus = utils.DlStatusEmpty // set DlStatusEmpty to skip root package.
+		b.DepTree.DlStatus = pkg.DlStatusEmpty // set DlStatusEmpty to skip root package.
 	}
 	pkgBuiltSet := make(map[string]bool)
 	if err := buildPkg(options.DepTree, b.PkgHome, options.root, options.SkipDeps, &pkgBuiltSet); err != nil {
@@ -114,14 +114,14 @@ func (b *install) Run() error {
 }
 
 // pkgHome is always pkg root.
-func createPkgDepCmake(pkgHome, srcHome string, depTree *utils.DependencyTree) error {
+func createPkgDepCmake(pkgHome, srcHome string, depTree *pkg.DependencyTree) error {
 	// create dep cmake file only for pkg based project.
 	if !depTree.IsPkgPackage {
 		return nil
 	}
 
 	// create cmake dep file for this package.
-	if cmakeDepWriter, err := os.Create(filepath.Join(srcHome, utils.CMakeDep)); err != nil {
+	if cmakeDepWriter, err := os.Create(filepath.Join(srcHome, pkg.CMakeDep)); err != nil {
 		return err
 	} else {
 		pkgCMakeLibSet := make(map[string]bool)
@@ -129,7 +129,7 @@ func createPkgDepCmake(pkgHome, srcHome string, depTree *utils.DependencyTree) e
 		bufWriter := bufio.NewWriter(cmakeDepWriter)
 
 		// for all package, set @PkgHome/vendor as vendor home.
-		bufWriter.WriteString(strings.Replace(PkgCMakeHeader, VendorPathReplace, utils.GetVendorPath(pkgHome), -1))
+		bufWriter.WriteString(strings.Replace(PkgCMakeHeader, VendorPathReplace, pkg.GetVendorPath(pkgHome), -1))
 		if err := cmakeLib(depTree, pkgHome, true, &pkgCMakeLibSet, bufWriter); err != nil {
 			return err
 		}
@@ -139,7 +139,7 @@ func createPkgDepCmake(pkgHome, srcHome string, depTree *utils.DependencyTree) e
 	// create cmake dep file for all its sub/child package.
 	for _, v := range depTree.Dependencies {
 		// for all non-root package, the srcHome is pkgHome/vendor/src/@packageName
-		err := createPkgDepCmake(pkgHome, utils.GetPackageSrcPath(pkgHome, v.Context.PackageName), v)
+		err := createPkgDepCmake(pkgHome, pkg.GetPackageSrcPath(pkgHome, v.Context.PackageName), v)
 		if err != nil {
 			return err // break loop.
 		}
