@@ -13,7 +13,7 @@ import (
 	"runtime"
 )
 
-var getCommand = &cmds.Command{
+var fetchCommand = &cmds.Command{
 	Name:        "fetch",
 	Summary:     "fetch packages from remote based an existed file " + pkg.PkgFileName,
 	Description: "fetch packages(zip,cmake,makefile,.etc format) existed file " + pkg.PkgFileName + ".",
@@ -31,13 +31,13 @@ func init() {
 
 	var f fetch
 	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
-	getCommand.FlagSet = fs
-	//getCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
-	getCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+pkg.PkgFileName)
+	fetchCommand.FlagSet = fs
+	//fetchCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
+	fetchCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+pkg.PkgFileName)
 	// todo make pkgHome abs path anyway.
-	getCommand.FlagSet.Usage = getCommand.Usage // use default usage provided by cmds.Command.
-	getCommand.Runner = &f
-	cmds.AllCommands = append(cmds.AllCommands, getCommand)
+	fetchCommand.FlagSet.Usage = fetchCommand.Usage // use default usage provided by cmds.Command.
+	fetchCommand.Runner = &f
+	cmds.AllCommands = append(cmds.AllCommands, fetchCommand)
 }
 
 type fetch struct {
@@ -46,9 +46,9 @@ type fetch struct {
 }
 
 func (get *fetch) PreRun() error {
-	jsonPath := filepath.Join(get.PkgHome, pkg.PkgFileName)
+	pkgFilePath := filepath.Join(get.PkgHome, pkg.PkgFileName)
 	// check pkg.json file existence.
-	if fileInfo, err := os.Stat(jsonPath); err != nil {
+	if fileInfo, err := os.Stat(pkgFilePath); err != nil {
 		return err
 	} else if fileInfo.IsDir() {
 		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
