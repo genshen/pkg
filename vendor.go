@@ -21,11 +21,11 @@ const (
 )
 
 type Pkg struct {
-	Command   map[string]string   `yaml:"command"`
-	Compilers map[string]string   `yaml:"compilers"`
-	Packages  Packages            `yaml:"packages"`
-	Build     map[string][]string `yaml:"build"`
-	CMakeLib  string              `yaml:"cmake_lib"`
+	Version  int                 `yaml:"version"`
+	Args     map[string]string   `yaml:"args"`
+	Packages Packages            `yaml:"packages"`
+	Build    map[string][]string `yaml:"build"`
+	CMakeLib string              `yaml:"cmake_lib"`
 }
 
 type Packages struct {
