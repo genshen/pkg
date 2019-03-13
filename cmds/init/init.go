@@ -1,6 +1,7 @@
 package init
 
 import (
+	"errors"
 	"flag"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
@@ -39,6 +40,9 @@ type initialization struct {
 }
 
 func (i *initialization) PreRun() error {
+	if i.home == "" {
+		return errors.New("flag home is required")
+	}
 	return nil
 }
 

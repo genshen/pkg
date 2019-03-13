@@ -49,6 +49,9 @@ type install struct {
 }
 
 func (b *install) PreRun() error {
+	if b.PkgHome == "" {
+		return errors.New("flag p is required")
+	}
 	// check sum file
 	pkgSumPath := filepath.Join(b.PkgHome, pkg.PkgSumFileName)
 	if fileInfo, err := os.Stat(pkgSumPath); err != nil {

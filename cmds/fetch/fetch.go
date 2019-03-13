@@ -1,6 +1,7 @@
 package install
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/genshen/cmds"
@@ -45,9 +46,13 @@ type fetch struct {
 	DepTree pkg.DependencyTree
 }
 
-func (get *fetch) PreRun() error {
-	pkgFilePath := filepath.Join(get.PkgHome, pkg.PkgFileName)
-	// check pkg.json file existence.
+func (f *fetch) PreRun() error {
+	if f.PkgHome == "" {
+		return errors.New("flag p is required")
+	}
+
+	pkgFilePath := filepath.Join(f.PkgHome, pkg.PkgFileName)
+	// check pkg.yaml file existence.
 	if fileInfo, err := os.Stat(pkgFilePath); err != nil {
 		return err
 	} else if fileInfo.IsDir() {
@@ -59,13 +64,13 @@ func (get *fetch) PreRun() error {
 	// return pkg.CheckVendorPath(pkgFilePath)
 }
 
-func (get *fetch) Run() error {
+func (f *fetch) Run() error {
 	// build pkg.json and download source code (json file must exists).
-	if err := get.installSubDependency(get.PkgHome, &get.DepTree); err != nil {
+	if err := f.installSubDependency(f.PkgHome, &f.DepTree); err != nil {
 		return err
 	}
 	// dump dependency tree to file system
-	if err := get.DepTree.Dump(pkg.PkgSumFileName); err == nil {
+	if err := f.DepTree.Dump(pkg.PkgSumFileName); err == nil {
 		log.WithFields(log.Fields{
 			"file": pkg.PkgSumFileName,
 		}).Info("saved dependencies tree to file.")
