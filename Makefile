@@ -6,7 +6,7 @@ pkg-linux-amd64:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o pkg-linux-amd64 ${PACKAGE}
 
 pkg-linux-arm64:
-    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o pkg-linux-arm64 ${PACKAGE}
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o pkg-linux-arm64 ${PACKAGE}
 
 pkg-darwin-amd64:
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o pkg-darwin-amd64 ${PACKAGE}
