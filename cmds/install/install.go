@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,6 +33,7 @@ func init() {
 	buildCommand.FlagSet = fs
 	buildCommand.FlagSet.StringVar(&cmd.PkgHome, "p", pwd, "absolute or relative path for pkg home.")
 	buildCommand.FlagSet.StringVar(&cmd.PkgName, "pkg", "", "install a specific package, default is all packages.")
+	buildCommand.FlagSet.BoolVar(&cmd.verbose, "verbose", false, "show building logs while installing package(s).")
 	buildCommand.FlagSet.BoolVar(&cmd.Skipdep, "skipdep", false,
 		"skip to build & install dependency packages, only used in installing a specific package. ")
 
@@ -46,6 +47,7 @@ type install struct {
 	PkgName string
 	Skipdep bool
 	DepTree pkg.DependencyTree
+	verbose bool // log the building log (verbose)
 }
 
 func (b *install) PreRun() error {
@@ -92,7 +94,7 @@ func (b *install) Run() error {
 		// travel the tree to find the package.
 		// todo check loop dependency.
 		var depTree *pkg.DependencyTree = nil
-		b.DepTree.Traversal(func(tree *pkg.DependencyTree) bool {
+		b.DepTree.TraversalPreOrder(func(tree *pkg.DependencyTree) bool {
 			if tree.Context.PackageName == b.PkgName {
 				depTree = tree // save the matched tree node.
 				return false
@@ -108,11 +110,13 @@ func (b *install) Run() error {
 	} else {
 		b.DepTree.DlStatus = pkg.DlStatusEmpty // set DlStatusEmpty to skip root package.
 	}
+
 	pkgBuiltSet := make(map[string]bool)
-	if err := buildPkg(options.DepTree, b.PkgHome, options.root, options.SkipDeps, &pkgBuiltSet); err != nil {
+	if err := buildPkg(options.DepTree, b.PkgHome, options.root, options.SkipDeps, &pkgBuiltSet, b.verbose); err != nil {
 		return err
 	}
 
+	log.Info("all packages installed successfully.")
 	return nil
 }
 

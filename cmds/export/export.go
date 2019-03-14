@@ -40,7 +40,7 @@ func init() {
 
 // import
 type export struct {
-	output string // todo auto filename by time.
+	output string
 	home   string
 }
 

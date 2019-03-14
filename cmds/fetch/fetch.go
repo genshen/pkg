@@ -83,7 +83,7 @@ func (f *fetch) Run() error {
 
 // install dependency in a dependency, installPath is the path of sub-dependency(pkg file location).
 // todo circle detect
-func (get *fetch) installSubDependency(installPath string, depTree *pkg.DependencyTree) error {
+func (f *fetch) installSubDependency(installPath string, depTree *pkg.DependencyTree) error {
 	if pkgJsonPath, err := os.Open(filepath.Join(installPath, pkg.PkgFileName)); err == nil { // pkg.json exists.
 		defer pkgJsonPath.Close()
 		if bytes, err := ioutil.ReadAll(pkgJsonPath); err != nil { // read file contents
@@ -102,11 +102,11 @@ func (get *fetch) installSubDependency(installPath string, depTree *pkg.Dependen
 			depTree.SelfCMakeLib = pkgs.CMakeLib // add cmake include script for this lib
 			depTree.IsPkgPackage = true
 			// download packages source of direct dependencies.
-			if deps, err := get.dlSrc(get.PkgHome, &pkgs.Packages); err == nil {
+			if deps, err := f.dlSrc(f.PkgHome, &pkgs.Packages); err == nil {
 				depTree.Dependencies = deps
 				// install sub dependencies for this package.
 				for _, dep := range deps {
-					if err := get.installSubDependency(dep.Context.SrcPath, dep); err != nil {
+					if err := f.installSubDependency(dep.Context.SrcPath, dep); err != nil {
 						return err
 					}
 				}
@@ -128,7 +128,7 @@ func (get *fetch) installSubDependency(installPath string, depTree *pkg.Dependen
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: pkgHome is where the file pkg.json is located.
-func (get *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.DependencyTree, error) {
+func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.

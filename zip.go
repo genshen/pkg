@@ -1,19 +1,17 @@
 package pkg
 
 import (
-	"path/filepath"
-	"os"
-	"io"
 	"archive/zip"
+	"io"
+	"os"
+	"path/filepath"
 )
 
 // FROM https://golangcode.com/unzip-files-in-go/
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
 func Unzip(src string, dest string) error {
-
 	//var filenames []string
-
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return err
@@ -21,7 +19,6 @@ func Unzip(src string, dest string) error {
 	defer r.Close()
 
 	for _, f := range r.File {
-
 		rc, err := f.Open()
 		if err != nil {
 			return err
@@ -33,12 +30,10 @@ func Unzip(src string, dest string) error {
 		// filenames = append(filenames, fpath)
 
 		if f.FileInfo().IsDir() {
-
 			// Make Folder
 			os.MkdirAll(fpath, os.ModePerm)
 
 		} else {
-
 			// Make File
 			if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
 				return err
