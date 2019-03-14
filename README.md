@@ -1,9 +1,11 @@
 # pkg
-> a c/c++ package manager based on source code.
+> a simple c/c++ package manager based on source code.
 
 ## Usage
 - Quick Start
 ```
+$ go get -u github.com/genshen/pkg/cmds
+
 # generate a new "package.yaml"
 $ pkg init
 

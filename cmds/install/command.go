@@ -10,7 +10,7 @@ import (
 )
 
 // run instruction.
-func RunIns(pkgHome, packageName, srcPath, ins string) error {
+func RunIns(pkgHome, packageName, srcPath, ins string, verbose bool) error {
 	ins = strings.Trim(ins, " ")
 	// todo rewrite
 	insTriple := strings.SplitN(ins, " ", 3)
@@ -24,28 +24,34 @@ func RunIns(pkgHome, packageName, srcPath, ins string) error {
 			}
 
 		case "RUN":
-			cacheDir := insTriple[1] // fixme path not contains space.
-			// remove old files.
-			if _, err := os.Stat(cacheDir); err != nil {
+			workDir := insTriple[1] // fixme path not contains space.
+			// remove old work dir files.
+			if _, err := os.Stat(workDir); err != nil {
 				if !os.IsNotExist(err) {
 					return err
 				}
 			} else {
-				os.RemoveAll(cacheDir)
+				if err := os.RemoveAll(workDir); err != nil {
+					return err
+				}
 			}
 
 			// make dirs
-			if err := os.MkdirAll(cacheDir, 0744); err != nil {
+			if err := os.MkdirAll(workDir, 0744); err != nil {
 				return err
 			}
 			// create command
 			script := insTriple[2]
-			log.Println("running [", script, "] in directory", cacheDir)
+			if verbose {
+				log.Println("running [", script, "] in directory", workDir)
+			}
 
 			cmd := exec.Command("sh", "-c", script) // todo only for linux OS or OSX.
-			cmd.Dir = cacheDir
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
+			cmd.Dir = workDir
+			if verbose {
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+			}
 			if err := cmd.Run(); err != nil {
 				return err
 			}

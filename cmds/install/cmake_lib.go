@@ -1,8 +1,8 @@
 package install
 
 import (
-	"github.com/genshen/pkg/utils"
-	"github.com/genshen/pkg/version"
+	"github.com/genshen/pkg"
+	"github.com/genshen/pkg/cmds/version"
 	"io"
 	"text/template"
 )
@@ -43,7 +43,7 @@ const CmakeToFile = `
 // todo combine this function anf function buildPkg.
 // root: indicating the root package
 // pkgHome: absolute path for pkg home.
-func cmakeLib(dep *utils.DependencyTree, pkgHome string, root bool, cmakeLibSet *map[string]bool, writer io.Writer) error {
+func cmakeLib(dep *pkg.DependencyTree, pkgHome string, root bool, cmakeLibSet *map[string]bool, writer io.Writer) error {
 	// if this package has been built, skip it and its dependency.
 	if _, ok := (*cmakeLibSet)[dep.Context.PackageName]; ok {
 		return nil
@@ -67,8 +67,8 @@ func cmakeLib(dep *utils.DependencyTree, pkgHome string, root bool, cmakeLibSet 
 		InnerCMake: dep.SelfCMakeLib,
 		OuterCMake: dep.CMakeLib,
 		PkgHome:    pkgHome,
-		SrcDir:     utils.GetPackageSrcPath("", dep.Context.PackageName), // use relative path.
-		PkgDir:     utils.GetPkgPath("", dep.Context.PackageName),
+		SrcDir:     pkg.GetPackageSrcPath("", dep.Context.PackageName), // use relative path.
+		PkgDir:     pkg.GetPkgPath("", dep.Context.PackageName),
 	}
 	// copy slice, don't modify the original data.
 	toFile.OuterBuildCommand = make([]string, len(dep.Builder))

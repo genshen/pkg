@@ -2,7 +2,7 @@
  * created by genshen on 2018/11/10
  */
 
-package utils
+package pkg
 
 import (
 	"encoding/json"
@@ -65,9 +65,10 @@ func DepTreeRecover(deps *DependencyTree, filename string) (error) {
 }
 
 // traversal all tree node with pre-order.
+// if the return value of callback function is false, it will skip its children nodes.
 func (depTree *DependencyTree) Traversal(callback func(*DependencyTree) bool) {
 	if r := callback(depTree); r == false {
-		return // if return value of callback is false, then the traversal will be break.
+		return
 	}
 	// if this node has children
 	if depTree.Dependencies == nil || len(depTree.Dependencies) == 0 {
@@ -77,4 +78,39 @@ func (depTree *DependencyTree) Traversal(callback func(*DependencyTree) bool) {
 			d.Traversal(callback)
 		}
 	}
+}
+
+// traversal all tree node with pre-order.
+// if the return value of callback function is false, then the traversal will break.
+func (depTree *DependencyTree) TraversalPreOrder(callback func(*DependencyTree) bool) bool {
+	if r := callback(depTree); r == false {
+		return false
+	}
+	// if this node has children
+	if depTree.Dependencies == nil || len(depTree.Dependencies) == 0 {
+		return true
+	} else {
+		for _, d := range depTree.Dependencies {
+			if r := d.TraversalPreOrder(callback); r == false {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// traversal all tree node(including the root node) by deep first strategy.
+// if return value of callback is false, then the traversal will break.
+func (depTree *DependencyTree) TraversalDeep(callback func(*DependencyTree) bool) bool {
+	// if this node has children
+	if depTree.Dependencies == nil || len(depTree.Dependencies) == 0 {
+		return true
+	} else {
+		for _, d := range depTree.Dependencies {
+			if r := d.TraversalDeep(callback); r == false {
+				return false
+			}
+		}
+	}
+	return callback(depTree)
 }

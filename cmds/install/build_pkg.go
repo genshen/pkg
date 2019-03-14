@@ -1,14 +1,14 @@
 package install
 
 import (
-	"github.com/genshen/pkg/utils"
+	"github.com/genshen/pkg"
 	log "github.com/sirupsen/logrus"
 )
 
 // build pkg from dependency tree.
 // pkgHome: the location of file pkg.json
 // skipDep: skip its dependency packages.
-func buildPkg(dep *utils.DependencyTree, pkgHome string, root bool, skipDep bool, builtSet *map[string]bool) error {
+func buildPkg(dep *pkg.DependencyTree, pkgHome string, root bool, skipDep bool, builtSet *map[string]bool, verbose bool) error {
 	// if this package has been built, skip it and its dependency.
 	if _, ok := (*builtSet)[dep.Context.PackageName]; ok {
 		return nil
@@ -22,13 +22,13 @@ func buildPkg(dep *utils.DependencyTree, pkgHome string, root bool, skipDep bool
 	if !skipDep {
 		// keep to build its dependency packages.
 		for _, v := range dep.Dependencies {
-			if err := buildPkg(v, pkgHome, false, skipDep, builtSet); err != nil {
+			if err := buildPkg(v, pkgHome, false, skipDep, builtSet, verbose); err != nil {
 				return err // break loop.
 			}
 		}
 	}
 
-	if dep.DlStatus == utils.DlStatusEmpty || root { // ignore empty and root package.
+	if dep.DlStatus == pkg.DlStatusEmpty || root { // ignore empty and root package.
 		return nil
 	}
 
@@ -39,15 +39,14 @@ func buildPkg(dep *utils.DependencyTree, pkgHome string, root bool, skipDep bool
 		// run inner build,(self build).
 		for _, ins := range dep.SelfBuild {
 			// replace vars in instruction with real value and run the instruction.
-
-			if err := RunIns(pkgHome, dep.Context.PackageName, dep.Context.SrcPath, processEnv(ins)); err != nil {
+			if err := RunIns(pkgHome, dep.Context.PackageName, dep.Context.SrcPath, processEnv(ins), verbose); err != nil {
 				return err
 			}
 		}
 	} else {
 		// run outer build.
 		for _, ins := range dep.Builder {
-			if err := RunIns(pkgHome, dep.Context.PackageName, dep.Context.SrcPath, processEnv(ins)); err != nil {
+			if err := RunIns(pkgHome, dep.Context.PackageName, dep.Context.SrcPath, processEnv(ins), verbose); err != nil {
 				return err
 			}
 		}

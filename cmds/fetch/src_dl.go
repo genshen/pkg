@@ -2,7 +2,7 @@ package install
 
 import (
 	"errors"
-	"github.com/genshen/pkg/utils"
+	"github.com/genshen/pkg"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -26,7 +26,7 @@ func filesSrc(srcDes string, packageName string, baseUrl string, files map[strin
 			"pkg":     packageName,
 			"storage": filepath.Join(srcDes, file),
 		}).Info("downloading dependencies.")
-		res, err := http.Get(utils.UrlJoin(baseUrl, k))
+		res, err := http.Get(pkg.UrlJoin(baseUrl, k))
 		if err != nil {
 			return err // todo rollback
 		}
@@ -86,7 +86,7 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 		"pkg":     zipName,
 		"storage": srcPath,
 	}).Println("extracting package.")
-	err = utils.Unzip(zipName, srcPath)
+	err = pkg.Unzip(zipName, srcPath)
 	if err != nil {
 		return err
 	}
