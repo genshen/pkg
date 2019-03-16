@@ -31,7 +31,7 @@ func init() {
 	}
 
 	var f fetch
-	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
+	fs := flag.NewFlagSet("fetch", flag.ExitOnError)
 	fetchCommand.FlagSet = fs
 	//fetchCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
 	fetchCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+pkg.PkgFileName)

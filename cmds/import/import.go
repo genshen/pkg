@@ -28,7 +28,7 @@ func init() {
 	}
 
 	var l _import
-	fs := flag.NewFlagSet("import", flag.ContinueOnError)
+	fs := flag.NewFlagSet("import", flag.ExitOnError)
 	importCommand.FlagSet = fs
 	importCommand.FlagSet.StringVar(&l.input, "input", "", "path of tarball file")
 	importCommand.FlagSet.StringVar(&l.home, "home", pwd, "path of home directory (where is "+pkg.PkgFileName+" file located)")
