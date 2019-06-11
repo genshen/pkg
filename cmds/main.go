@@ -15,6 +15,6 @@ func main() {
 	cmds.SetProgramName("pkg")
 	err := cmds.Parse()
 	if err != nil {
-		log.Error(err)
+		log.Fatal(err)
 	}
 }
