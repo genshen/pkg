@@ -70,7 +70,7 @@ func (f *fetch) Run() error {
 		return err
 	}
 	// dump dependency tree to file system
-	if err := f.DepTree.Dump(pkg.PkgSumFileName); err == nil {
+	if err := f.DepTree.Dump(filepath.Join(f.PkgHome, pkg.PkgSumFileName)); err == nil { //fixme
 		log.WithFields(log.Fields{
 			"file": pkg.PkgSumFileName,
 		}).Info("saved dependencies tree to file.")
