@@ -29,7 +29,7 @@ func init() {
 	}
 
 	var cmd install
-	fs := flag.NewFlagSet("install", flag.ContinueOnError)
+	fs := flag.NewFlagSet("install", flag.ExitOnError)
 	buildCommand.FlagSet = fs
 	buildCommand.FlagSet.StringVar(&cmd.PkgHome, "p", pwd, "absolute or relative path for pkg home.")
 	buildCommand.FlagSet.StringVar(&cmd.PkgName, "pkg", "", "install a specific package, default is all packages.")

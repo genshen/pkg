@@ -29,7 +29,7 @@ func init() {
 	}
 
 	var ex export
-	fs := flag.NewFlagSet("export", flag.ContinueOnError)
+	fs := flag.NewFlagSet("export", flag.ExitOnError)
 	exportCommand.FlagSet = fs
 	exportCommand.FlagSet.StringVar(&ex.output, "out", "", "path to save tarball file")
 	exportCommand.FlagSet.StringVar(&ex.home, "home", pwd, "path of home directory (where is "+pkg.PkgFileName+" file located)")

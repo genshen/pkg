@@ -31,7 +31,7 @@ func init() {
 	}
 
 	var f fetch
-	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
+	fs := flag.NewFlagSet("fetch", flag.ExitOnError)
 	fetchCommand.FlagSet = fs
 	//fetchCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
 	fetchCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+pkg.PkgFileName)
@@ -44,6 +44,7 @@ func init() {
 type fetch struct {
 	PkgHome string // the absolute path of root 'pkg.json' form command path.
 	DepTree pkg.DependencyTree
+	Auth    []pkg.Auth
 }
 
 func (f *fetch) PreRun() error {
@@ -59,6 +60,13 @@ func (f *fetch) PreRun() error {
 		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
 	}
 
+	//parse git clone auth file.
+	if parsedAuth, err := pkg.ParseAuth(f.PkgHome); err != nil {
+		return err
+	} else {
+		f.Auth = parsedAuth[:]
+	}
+
 	return nil
 	// check .vendor and some related directory, if not exists, create it.
 	// return pkg.CheckVendorPath(pkgFilePath)
@@ -70,7 +78,7 @@ func (f *fetch) Run() error {
 		return err
 	}
 	// dump dependency tree to file system
-	if err := f.DepTree.Dump(pkg.PkgSumFileName); err == nil {
+	if err := f.DepTree.Dump(filepath.Join(f.PkgHome, pkg.PkgSumFileName)); err == nil { //fixme
 		log.WithFields(log.Fields{
 			"file": pkg.PkgSumFileName,
 		}).Info("saved dependencies tree to file.")
@@ -179,7 +187,7 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 		status := pkg.DlStatusEmpty
 		// check directory, if not exists, then create it.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
-			if err := gitSrc(srcDes, key, gitPkg.Path, gitPkg.Hash, gitPkg.Branch, gitPkg.Tag); err != nil {
+			if err := gitSrc(f.Auth, srcDes, key, gitPkg.Path, gitPkg.Hash, gitPkg.Branch, gitPkg.Tag); err != nil {
 				// todo rollback, clean src.
 				return nil, err
 			}

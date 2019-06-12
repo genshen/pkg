@@ -26,7 +26,7 @@ func init() {
 	}
 
 	var initial initialization
-	fs := flag.NewFlagSet("init", flag.ContinueOnError)
+	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	initCommand.FlagSet = fs
 	initCommand.FlagSet.StringVar(&initial.home, "home", pwd, "path of home directory")
 	// initCommand.FlagSet.StringVar(&output, "o", "", "output directory")
