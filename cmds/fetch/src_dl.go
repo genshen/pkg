@@ -8,6 +8,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 )
@@ -103,9 +104,23 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 // hash: git commit hash.
 // branch: git branch.
 // tag:  git tag.
-func gitSrc(repositoryPrefix string, packageName, gitPath, hash, branch, tag string) error {
+func gitSrc(auths []pkg.Auth, repositoryPrefix string, packageName, gitPath, hash, branch, tag string) error {
 	if err := os.MkdirAll(repositoryPrefix, 0744); err != nil {
 		return err
+	}
+
+	// generate auth repository url.
+	repoUrl := gitPath
+	if gitUrl, err := url.Parse(gitPath); err != nil {
+		return err
+	} else {
+		for _, auth := range auths {
+			if auth.Host == gitUrl.Host {
+				gitUrl.User = url.UserPassword(auth.Username, auth.Token)
+				repoUrl = gitUrl.String()
+				break
+			}
+		}
 	}
 
 	// init ReferenceName using branch and tag.
@@ -136,7 +151,7 @@ func gitSrc(repositoryPrefix string, packageName, gitPath, hash, branch, tag str
 
 	// clone repository.
 	if repos, err := git.PlainClone(repositoryPrefix, false, &git.CloneOptions{
-		URL:           gitPath,
+		URL:           repoUrl,
 		Progress:      os.Stdout,
 		ReferenceName: referenceName, // specific branch or tag.
 		//RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
@@ -149,8 +164,8 @@ func gitSrc(repositoryPrefix string, packageName, gitPath, hash, branch, tag str
 				return err
 			}
 			log.WithFields(log.Fields{
-				"pkg":        packageName,
-				"hash":       hash,
+				"pkg":  packageName,
+				"hash": hash,
 			}).Println("checkout repository to commit.")
 			// do checkout
 			err = worktree.Checkout(&git.CheckoutOptions{

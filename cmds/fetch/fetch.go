@@ -44,6 +44,7 @@ func init() {
 type fetch struct {
 	PkgHome string // the absolute path of root 'pkg.json' form command path.
 	DepTree pkg.DependencyTree
+	Auth    []pkg.Auth
 }
 
 func (f *fetch) PreRun() error {
@@ -57,6 +58,13 @@ func (f *fetch) PreRun() error {
 		return err
 	} else if fileInfo.IsDir() {
 		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
+	}
+
+	//parse git clone auth file.
+	if parsedAuth, err := pkg.ParseAuth(f.PkgHome); err != nil {
+		return err
+	} else {
+		f.Auth = parsedAuth[:]
 	}
 
 	return nil
@@ -179,7 +187,7 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 		status := pkg.DlStatusEmpty
 		// check directory, if not exists, then create it.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
-			if err := gitSrc(srcDes, key, gitPkg.Path, gitPkg.Hash, gitPkg.Branch, gitPkg.Tag); err != nil {
+			if err := gitSrc(f.Auth, srcDes, key, gitPkg.Path, gitPkg.Hash, gitPkg.Branch, gitPkg.Tag); err != nil {
 				// todo rollback, clean src.
 				return nil, err
 			}
