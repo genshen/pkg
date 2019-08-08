@@ -34,6 +34,7 @@ func init() {
 	buildCommand.FlagSet.StringVar(&cmd.PkgHome, "p", pwd, "absolute or relative path for pkg home.")
 	buildCommand.FlagSet.StringVar(&cmd.PkgName, "pkg", "", "install a specific package, default is all packages.")
 	buildCommand.FlagSet.BoolVar(&cmd.verbose, "verbose", false, "show building logs while installing package(s).")
+	buildCommand.FlagSet.BoolVar(&cmd.dry, "dry", false, "don't run packages build commands.")
 	buildCommand.FlagSet.BoolVar(&cmd.Skipdep, "skipdep", false,
 		"skip to build & install dependency packages, only used in installing a specific package. ")
 
@@ -48,6 +49,7 @@ type install struct {
 	Skipdep bool
 	DepTree pkg.DependencyTree
 	verbose bool // log the building log (verbose)
+	dry     bool // whether to run build(compile and install) commands
 }
 
 func (b *install) PreRun() error {
@@ -82,6 +84,9 @@ func (b *install) Run() error {
 		return err
 	}
 
+	if b.dry {
+		return nil
+	}
 	// compile and install the source code.
 	// besides, you can also just use source code in your project (e.g. use cmake package in cmake project).
 	var options = struct {
