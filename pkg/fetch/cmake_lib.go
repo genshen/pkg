@@ -3,7 +3,7 @@ package install
 import (
 	"bufio"
 	"github.com/genshen/pkg"
-	"github.com/genshen/pkg/cmds/version"
+	"github.com/genshen/pkg/pkg/version"
 	"io"
 	"log"
 	"os"

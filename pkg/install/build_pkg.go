@@ -8,7 +8,7 @@ import (
 // build pkg from dependency tree.
 // pkgHome: the location of file pkg.json
 // skipDep: skip its dependency packages.
-func buildPkg(metas []pkg.PackageMeta, pkgHome string, verbose bool) error {
+func buildPkg(metas []pkg.PackageMeta, pkgHome string,  verbose bool) error {
 	for _, meta := range metas {
 		log.WithFields(log.Fields{
 			"pkg": meta.PackageName,
