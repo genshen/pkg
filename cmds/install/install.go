@@ -1,7 +1,6 @@
 package install
 
 import (
-	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 var buildCommand = &cmds.Command{
@@ -34,9 +32,6 @@ func init() {
 	buildCommand.FlagSet.StringVar(&cmd.PkgHome, "p", pwd, "absolute or relative path for pkg home.")
 	buildCommand.FlagSet.StringVar(&cmd.PkgName, "pkg", "", "install a specific package, default is all packages.")
 	buildCommand.FlagSet.BoolVar(&cmd.verbose, "verbose", false, "show building logs while installing package(s).")
-	buildCommand.FlagSet.BoolVar(&cmd.dry, "dry", false, "don't run packages build commands.")
-	buildCommand.FlagSet.BoolVar(&cmd.Skipdep, "skipdep", false,
-		"skip to build & install dependency packages, only used in installing a specific package. ")
 
 	buildCommand.FlagSet.Usage = buildCommand.Usage // use default usage provided by cmds.Command.
 	buildCommand.Runner = &cmd
@@ -46,10 +41,8 @@ func init() {
 type install struct {
 	PkgHome string
 	PkgName string
-	Skipdep bool
-	DepTree pkg.DependencyTree
 	verbose bool // log the building log (verbose)
-	dry     bool // whether to run build(compile and install) commands
+	Metas   []pkg.PackageMeta
 }
 
 func (b *install) PreRun() error {
@@ -70,91 +63,50 @@ func (b *install) PreRun() error {
 	}
 
 	// resolve sum file.
-	if err := pkg.DepTreeRecover(&b.DepTree, pkgSumPath); err != nil {
+	if err := pkg.DepTreeRecover(&b.Metas, pkgSumPath); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (b *install) Run() error {
-	// generating cmake script to include dependency libs.
-	// the generated cmake file is stored at where pkg command runs.
-	// for root package, its srcHome equals to PkgHome.
-	if err := createPkgDepCmake(b.PkgHome, b.PkgHome, &b.DepTree); err != nil {
-		return err
-	}
-
-	if b.dry {
-		return nil
-	}
 	// compile and install the source code.
 	// besides, you can also just use source code in your project (e.g. use cmake package in cmake project).
 	var options = struct {
-		DepTree  *pkg.DependencyTree
-		SkipDeps bool
-		root     bool
-	}{&b.DepTree, false, true}
+		Metas []pkg.PackageMeta
+		root  bool
+	}{nil, true}
 
 	if b.PkgName != "" { // build a specific package, not all packages.
 		// travel the tree to find the package.
-		// todo check loop dependency.
-		var depTree *pkg.DependencyTree = nil
-		b.DepTree.TraversalPreOrder(func(tree *pkg.DependencyTree) bool {
-			if tree.Context.PackageName == b.PkgName {
-				depTree = tree // save the matched tree node.
-				return false
+		var found = false
+		for _, v := range b.Metas {
+			if v.PackageName == b.PkgHome {
+				// save the matched tree node.
+				found = true
+				options.Metas = make([]pkg.PackageMeta, 1)
+				options.Metas = append(options.Metas, v)
 			}
-			return true
-		})
-		if depTree == nil {
+		}
+		if !found {
 			return errors.New(fmt.Sprintf("package %s not found", b.PkgName))
 		}
-		options.DepTree = depTree
-		options.SkipDeps = b.Skipdep
 		options.root = false
 	} else {
-		b.DepTree.DlStatus = pkg.DlStatusEmpty // set DlStatusEmpty to skip root package.
+		options.Metas = b.Metas
+		// remove root package building.
+		for i, v := range options.Metas {
+			if v.PackageName == "" {
+				options.Metas = append(options.Metas[:i], options.Metas[i+1:]...)
+				break
+			}
+		}
 	}
 
-	pkgBuiltSet := make(map[string]bool)
-	if err := buildPkg(options.DepTree, b.PkgHome, options.root, options.SkipDeps, &pkgBuiltSet, b.verbose); err != nil {
+	if err := buildPkg(options.Metas, b.PkgHome, b.verbose); err != nil {
 		return err
 	}
 
 	log.Info("all packages installed successfully.")
-	return nil
-}
-
-// pkgHome is always pkg root.
-func createPkgDepCmake(pkgHome, srcHome string, depTree *pkg.DependencyTree) error {
-	// create dep cmake file only for pkg based project.
-	if !depTree.IsPkgPackage {
-		return nil
-	}
-
-	// create cmake dep file for this package.
-	if cmakeDepWriter, err := os.Create(filepath.Join(srcHome, pkg.CMakeDep)); err != nil {
-		return err
-	} else {
-		pkgCMakeLibSet := make(map[string]bool)
-		defer cmakeDepWriter.Close()
-		bufWriter := bufio.NewWriter(cmakeDepWriter)
-
-		// for all package, set @PkgHome/vendor as vendor home.
-		bufWriter.WriteString(strings.Replace(PkgCMakeHeader, VendorPathReplace, pkg.GetVendorPath(pkgHome), -1))
-		if err := cmakeLib(depTree, pkgHome, true, &pkgCMakeLibSet, bufWriter); err != nil {
-			return err
-		}
-		bufWriter.Flush()
-		log.Println("generated cmake for package", depTree.Context.PackageName)
-	}
-	// create cmake dep file for all its sub/child package.
-	for _, v := range depTree.Dependencies {
-		// for all non-root package, the srcHome is pkgHome/vendor/src/@packageName
-		err := createPkgDepCmake(pkgHome, pkg.GetPackageSrcPath(pkgHome, v.Context.PackageName), v)
-		if err != nil {
-			return err // break loop.
-		}
-	}
 	return nil
 }

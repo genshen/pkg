@@ -8,53 +8,35 @@ import (
 // build pkg from dependency tree.
 // pkgHome: the location of file pkg.json
 // skipDep: skip its dependency packages.
-func buildPkg(dep *pkg.DependencyTree, pkgHome string, root bool, skipDep bool, builtSet *map[string]bool, verbose bool) error {
-	// if this package has been built, skip it and its dependency.
-	if _, ok := (*builtSet)[dep.Context.PackageName]; ok {
-		return nil
-	}
+func buildPkg(metas []pkg.PackageMeta, pkgHome string, verbose bool) error {
+	for _, meta := range metas {
+		log.WithFields(log.Fields{
+			"pkg": meta.PackageName,
+		}).Info("installing package.")
 
-	log.WithFields(log.Fields{
-		"pkg": dep.Context.PackageName,
-	}).Info("installing package.")
-
-	// load children
-	if !skipDep {
-		// keep to build its dependency packages.
-		for _, v := range dep.Dependencies {
-			if err := buildPkg(v, pkgHome, false, skipDep, builtSet, verbose); err != nil {
-				return err // break loop.
+		pkg.AddVendorPathEnv(pkgHome)    // use absolute path.
+		pkg.AddPathEnv(meta.PackageName) // add vars for this package, using relative path.
+		// if outer build is specified, then inner build will be ignored.
+		if len(meta.Builder) == 0 {
+			// run inner build,(self build).
+			for _, ins := range meta.SelfBuild {
+				// replace vars in instruction with real value and run the instruction.
+				if err := RunIns(pkgHome, meta.PackageName, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+					return err
+				}
+			}
+		} else {
+			// run outer build.
+			for _, ins := range meta.Builder {
+				if err := RunIns(pkgHome, meta.PackageName, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+					return err
+				}
 			}
 		}
-	}
 
-	if dep.DlStatus == pkg.DlStatusEmpty || root { // ignore empty and root package.
-		return nil
+		log.WithFields(log.Fields{
+			"pkg": meta.PackageName,
+		}).Info("package installed.")
 	}
-
-	addVendorPathEnv(pkgHome)           // use absolute path.
-	addPathEnv(dep.Context.PackageName) // add vars for this package, using relative path.
-	// if outer build is specified, then inner build will be ignored.
-	if len(dep.Builder) == 0 {
-		// run inner build,(self build).
-		for _, ins := range dep.SelfBuild {
-			// replace vars in instruction with real value and run the instruction.
-			if err := RunIns(pkgHome, dep.Context.PackageName, dep.Context.SrcPath, processEnv(ins), verbose); err != nil {
-				return err
-			}
-		}
-	} else {
-		// run outer build.
-		for _, ins := range dep.Builder {
-			if err := RunIns(pkgHome, dep.Context.PackageName, dep.Context.SrcPath, processEnv(ins), verbose); err != nil {
-				return err
-			}
-		}
-	}
-
-	(*builtSet)[dep.Context.PackageName] = true
-	log.WithFields(log.Fields{
-		"pkg": dep.Context.PackageName,
-	}).Info("package installed.")
 	return nil
 }
