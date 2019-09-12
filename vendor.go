@@ -16,6 +16,7 @@ const (
 const (
 	PkgFileName     = "pkg.yaml"
 	PkgSumFileName  = VendorName + "/pkg.sum.json"
+	BuildShellName  = "pkg.build.sh"
 	CMakeDep        = "pkg.dep.cmake"
 	CMakeVendorPath = "${VENDOR_PATH}"
 )
@@ -60,11 +61,15 @@ type ArchivePackage struct {
 }
 
 func GetVendorPath(base string) string {
-	return filepath.Join(base, VendorName);
+	return filepath.Join(base, VendorName)
+}
+
+func GetPkgBuildPath(base string) string {
+	return filepath.Join(base, VendorName, BuildShellName)
 }
 
 func GetPkgSumPath(base string) string {
-	return filepath.Join(base, PkgSumFileName);
+	return filepath.Join(base, BuildShellName)
 }
 
 // return @base/vendor/src/@packageName

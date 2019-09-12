@@ -1,6 +1,9 @@
 package install
 
 import (
+	"bufio"
+	"fmt"
+	"github.com/genshen/pkg"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
@@ -43,7 +46,7 @@ func RunIns(pkgHome, packageName, srcPath, ins string, verbose bool) error {
 			// create command
 			script := insTriple[2]
 			if verbose {
-				log.Println("running [", script, "] in directory", workDir)
+				log.Println("running [", script, "] in directory ", workDir)
 			}
 
 			cmd := exec.Command("sh", "-c", script) // todo only for linux OS or OSX.
@@ -61,7 +64,6 @@ func RunIns(pkgHome, packageName, srcPath, ins string, verbose bool) error {
 }
 
 func runInsCopy(target, des string) error {
-
 	from, err := os.Open(target)
 	if err != nil {
 		return err
@@ -77,6 +79,32 @@ func runInsCopy(target, des string) error {
 	_, err = io.Copy(to, from)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func WriteIns(w *bufio.Writer, pkgHome, packageName, ins string) error {
+	ins = strings.Trim(ins, " ")
+	// todo rewrite
+	insTriple := strings.SplitN(ins, " ", 3)
+
+	if len(insTriple) == 3 {
+		switch insTriple[0] {
+		case "CP":
+			// run copy.
+			if _, err := w.WriteString(fmt.Sprintf("mkdir -p \"%s\"\n", pkg.GetIncludePath(pkgHome))); err != nil {
+				return err
+			}
+			if _, err := w.WriteString(fmt.Sprintf("cp -r \"%s\" \"%s\"\n",
+				filepath.Join(pkg.GetPackageSrcPath(pkgHome, packageName), insTriple[1]), insTriple[2])); err != nil {
+				return err
+			}
+		case "RUN":
+			if _, err := w.WriteString(fmt.Sprintf("mkdir -p \"%s\"\ncd \"%s\"\n%s\n",
+				insTriple[1], insTriple[1], insTriple[2])); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

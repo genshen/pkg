@@ -1,9 +1,14 @@
 package install
 
 import (
+	"bufio"
 	"github.com/genshen/pkg"
-	"github.com/genshen/pkg/cmds/version"
+	"github.com/genshen/pkg/pkg/version"
 	"io"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -40,6 +45,40 @@ const CmakeToFile = `
 {{.OuterCMake}} # outer cmake
 `
 
+// pkgHome is always pkg root.
+func createPkgDepCmake(pkgHome, srcHome string, depTree *pkg.DependencyTree) error {
+	// create dep cmake file only for pkg based project.
+	if !depTree.IsPkgPackage {
+		return nil
+	}
+
+	// create cmake dep file for this package.
+	if cmakeDepWriter, err := os.Create(filepath.Join(srcHome, pkg.CMakeDep)); err != nil {
+		return err
+	} else {
+		pkgCMakeLibSet := make(map[string]bool)
+		defer cmakeDepWriter.Close()
+		bufWriter := bufio.NewWriter(cmakeDepWriter)
+
+		// for all package, set @PkgHome/vendor as vendor home.
+		bufWriter.WriteString(strings.Replace(PkgCMakeHeader, VendorPathReplace, pkg.GetVendorPath(pkgHome), -1))
+		if err := cmakeLib(depTree, pkgHome, true, &pkgCMakeLibSet, bufWriter); err != nil {
+			return err
+		}
+		bufWriter.Flush()
+		log.Println("generated cmake for package", depTree.Context.PackageName)
+	}
+	// create cmake dep file for all its sub/child package.
+	for _, v := range depTree.Dependencies {
+		// for all non-root package, the srcHome is pkgHome/vendor/src/@packageName
+		err := createPkgDepCmake(pkgHome, pkg.GetPackageSrcPath(pkgHome, v.Context.PackageName), v)
+		if err != nil {
+			return err // break loop.
+		}
+	}
+	return nil
+}
+
 // todo combine this function anf function buildPkg.
 // root: indicating the root package
 // pkgHome: absolute path for pkg home.
@@ -59,8 +98,8 @@ func cmakeLib(dep *pkg.DependencyTree, pkgHome string, root bool, cmakeLibSet *m
 	if root {
 		return nil
 	}
-	addVendorPathEnv("")                // relative path.
-	addPathEnv(dep.Context.PackageName) // add vars for this package, using relative path.
+	pkg.AddVendorPathEnv("")                // relative path.
+	pkg.AddPathEnv(dep.Context.PackageName) // add vars for this package, using relative path.
 	// generating cmake script.
 	toFile := cmakeDepData{
 		LibName:    dep.Context.PackageName,
@@ -90,14 +129,14 @@ func genCMake(cmake cmakeDepData, writer io.Writer) error {
 	if cmake.InnerCMake == "" && cmake.OuterCMake == "" {
 		return nil
 	}
-	cmake.InnerCMake = processEnv(cmake.InnerCMake)
-	cmake.OuterCMake = processEnv(cmake.OuterCMake)
+	cmake.InnerCMake = pkg.ProcessEnv(cmake.InnerCMake)
+	cmake.OuterCMake = pkg.ProcessEnv(cmake.OuterCMake)
 	// InnerBuildCommand and OuterBuildCommand is just used in comment.
 	for i, v := range cmake.InnerBuildCommand {
-		cmake.InnerBuildCommand[i] = processEnv(v)
+		cmake.InnerBuildCommand[i] = pkg.ProcessEnv(v)
 	}
 	for i, v := range cmake.OuterBuildCommand {
-		cmake.OuterBuildCommand[i] = processEnv(v)
+		cmake.OuterBuildCommand[i] = pkg.ProcessEnv(v)
 	}
 
 	// render template.

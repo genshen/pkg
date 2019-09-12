@@ -1,4 +1,4 @@
-package install
+package pkg
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 
 func Test_ProcessEnv(t *testing.T) {
 	s := `1{{.CORES}}`
-	newstr := processEnv(s)
+	newstr := ProcessEnv(s)
 	ncpus := runtime.NumCPU()
 	if newstr != fmt.Sprintf("1%v", ncpus) {
 		t.Errorf("test failed.%s - %s", s, newstr)
