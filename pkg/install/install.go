@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -31,6 +32,7 @@ func init() {
 	buildCommand.FlagSet = fs
 	buildCommand.FlagSet.StringVar(&cmd.PkgHome, "p", pwd, "absolute or relative path for pkg home.")
 	buildCommand.FlagSet.StringVar(&cmd.PkgName, "pkg", "", "install a specific package, default is all packages.")
+	buildCommand.FlagSet.BoolVar(&cmd.sh, "sh", false, "skip building, but generate shell script for building packages.")
 	buildCommand.FlagSet.BoolVar(&cmd.verbose, "verbose", false, "show building logs while installing package(s).")
 
 	buildCommand.FlagSet.Usage = buildCommand.Usage // use default usage provided by cmds.Command.
@@ -41,6 +43,7 @@ func init() {
 type install struct {
 	PkgHome string
 	PkgName string
+	sh      bool // generate shell script for building packages(sh)
 	verbose bool // log the building log (verbose)
 	Metas   []pkg.PackageMeta
 }
@@ -103,10 +106,23 @@ func (b *install) Run() error {
 		}
 	}
 
-	if err := buildPkg(options.Metas, b.PkgHome, b.verbose); err != nil {
-		return err
-	}
+	if b.sh {
+		if shellFile, err := os.OpenFile(pkg.GetPkgBuildPath(b.PkgHome), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755); err != nil {
+			return err
+		} else {
+			buffWriter := bufio.NewWriter(shellFile)
+			defer buffWriter.Flush()
+			if err := generateShell(buffWriter, options.Metas, b.PkgHome); err != nil {
+				return err
+			}
 
-	log.Info("all packages installed successfully.")
+			log.Info("pkg building shell script generated at ", pkg.GetPkgBuildPath(b.PkgHome))
+		}
+	} else {
+		if err := buildPkg(options.Metas, b.PkgHome, b.verbose); err != nil {
+			return err
+		}
+		log.Info("all packages installed successfully.")
+	}
 	return nil
 }
