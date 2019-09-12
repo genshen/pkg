@@ -1,4 +1,4 @@
-PACKAGE=github.com/genshen/pkg/cmds
+PACKAGE=github.com/genshen/pkg/pkg
 
 all: pkg-linux-amd64 pkg-linux-arm64 pkg-darwin-amd64 pkg-windows-amd64.exe
 

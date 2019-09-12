@@ -4,7 +4,7 @@
 ## Usage
 - Quick Start
 ```
-$ go get -u github.com/genshen/pkg/cmds
+$ go get -u github.com/genshen/pkg/pkg
 
 # generate a new "package.yaml"
 $ pkg init

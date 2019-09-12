@@ -5,7 +5,7 @@ FROM golang:1.12 as builder
 MAINTAINER genshen genshenchu@gmail.com
 
 ARG PROJECT_PATH="/go/src/github.com/genshen/pkg"
-ARG PACKAFE_NAME="github.com/genshen/pkg/cmds"
+ARG PACKAFE_NAME="github.com/genshen/pkg/pkg"
 ARG BINARY_NAME="pkg"
 
 # Add all from your project inside workdir of docker image
