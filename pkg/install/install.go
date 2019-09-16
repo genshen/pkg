@@ -84,11 +84,12 @@ func (b *install) Run() error {
 		// travel the tree to find the package.
 		var found = false
 		for _, v := range b.Metas {
-			if v.PackageName == b.PkgHome {
+			if v.PackageName == b.PkgName {
 				// save the matched tree node.
 				found = true
 				options.Metas = make([]pkg.PackageMeta, 1)
 				options.Metas = append(options.Metas, v)
+				break
 			}
 		}
 		if !found {
