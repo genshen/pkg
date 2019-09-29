@@ -93,6 +93,8 @@ func (f *fetch) Run() error {
 		return err
 	}
 
+	// dump all packages's dependencies.
+	f.ListDeps()
 	log.Info("fetch succeeded.")
 	return nil
 }
@@ -222,4 +224,40 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 		deps = append(deps, &dep)
 	}
 	return deps, nil
+}
+
+func (f *fetch) ListDeps() error {
+	if file, err := os.Create(pkg.GetDepGraphPath(f.PkgHome)); err != nil {
+		return err
+	} else {
+		defer file.Close()
+
+		// dump direct and indirect dependencies of each package.
+		pkgTraversalFlag := make(map[string]bool)
+		err := f.DepTree.TraversalDeep(func(tree *pkg.DependencyTree) error {
+			if _, ok := (pkgTraversalFlag)[tree.Context.PackageName]; ok {
+				return nil // skip
+			}
+			p, err := tree.ListDeps();
+			if err != nil {
+				return err
+			}
+			// write package name
+			if _, err := file.WriteString(tree.Context.PackageName + ": "); err != nil {
+				return err
+			}
+			// dump dependencies list to file.
+			if _, err := fmt.Fprintln(file, p); err != nil {
+				return err
+			}
+
+			pkgTraversalFlag[tree.Context.PackageName] = true
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

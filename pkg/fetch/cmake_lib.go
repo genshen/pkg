@@ -61,6 +61,7 @@ func createPkgDepCmake(pkgHome, srcHome string, depTree *pkg.DependencyTree) err
 		bufWriter := bufio.NewWriter(cmakeDepWriter)
 
 		// for all package, set @PkgHome/vendor as vendor home.
+		// write cmake script for all direct and  indirect dependencies packages.
 		bufWriter.WriteString(strings.Replace(PkgCMakeHeader, VendorPathReplace, pkg.GetVendorPath(pkgHome), -1))
 		if err := cmakeLib(depTree, pkgHome, true, &pkgCMakeLibSet, bufWriter); err != nil {
 			return err

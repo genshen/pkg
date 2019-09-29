@@ -18,6 +18,7 @@ const (
 	PkgSumFileName  = VendorName + "/pkg.sum.json"
 	BuildShellName  = "pkg.build.sh"
 	CMakeDep        = "pkg.dep.cmake"
+	DepGraph        = "pkg.graph"
 	CMakeVendorPath = "${VENDOR_PATH}"
 )
 
@@ -66,6 +67,10 @@ func GetVendorPath(base string) string {
 
 func GetPkgBuildPath(base string) string {
 	return filepath.Join(base, VendorName, BuildShellName)
+}
+
+func GetDepGraphPath(base string) string {
+	return filepath.Join(base, VendorName, DepGraph)
 }
 
 func GetPkgSumPath(base string) string {

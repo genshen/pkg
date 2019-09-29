@@ -47,9 +47,9 @@ func (depTree *DependencyTree) Dump(filename string) error {
 	added := make(map[string]bool) // string is package name.
 	metas := make([]PackageMeta, 0)
 
-	depTree.TraversalDeep(func(node *DependencyTree) bool {
+	depTree.TraversalDeep(func(node *DependencyTree) error {
 		if _, ok := added[node.Context.PackageName]; ok {
-			return true // the package have already been added to map.
+			return nil // the package have already been added to map.
 		}
 		metas = append(metas, PackageMeta{
 			PackageName:  node.Context.PackageName,
@@ -60,7 +60,7 @@ func (depTree *DependencyTree) Dump(filename string) error {
 			SelfCMakeLib: node.SelfCMakeLib,
 		})
 		added[node.Context.PackageName] = true
-		return true
+		return nil
 	})
 
 	// buffer.WriteString()
@@ -74,6 +74,27 @@ func (depTree *DependencyTree) Dump(filename string) error {
 		}
 	}
 	return nil
+}
+
+// list all dependencies packages of a package by TraversalDeep.
+func (depTree *DependencyTree) ListDeps() ([]string, error) {
+	// dump all its dependencies
+	pkgTraversalFlag := make(map[string]bool)
+	lists := make([]string, 0)
+
+	pkgTraversalFlag[depTree.Context.PackageName] = true // skip the root package.
+	err := depTree.TraversalDeep(func(tree *DependencyTree) error {
+		if _, ok := (pkgTraversalFlag)[tree.Context.PackageName]; ok {
+			return nil // skip
+		}
+		lists = append(lists, tree.Context.PackageName)
+		pkgTraversalFlag[tree.Context.PackageName] = true
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return lists, nil
 }
 
 // recover the dependency tree from a json file.
@@ -131,12 +152,12 @@ func (depTree *DependencyTree) TraversalPreOrder(callback func(*DependencyTree) 
 
 // traversal all tree node(including the root node) by deep first strategy.
 // if return value of callback is false, then the traversal will break.
-func (depTree *DependencyTree) TraversalDeep(callback func(*DependencyTree) bool) bool {
+func (depTree *DependencyTree) TraversalDeep(callback func(*DependencyTree) error) error {
 	// if this node has children
 	if depTree.Dependencies != nil && len(depTree.Dependencies) != 0 {
 		for _, d := range depTree.Dependencies {
-			if r := d.TraversalDeep(callback); r == false {
-				return false
+			if err := d.TraversalDeep(callback); err != nil {
+				return err
 			}
 		}
 	}
