@@ -34,7 +34,6 @@ type DepPkgContext struct {
 
 // package metadata used in sum file.
 type PackageMeta struct {
-	PackageName  string
 	SrcPath      string
 	Builder      []string // outer builder (lib used by others)
 	SelfBuild    []string // inner builder (shows how this package is built)
@@ -44,24 +43,24 @@ type PackageMeta struct {
 
 // marshal dependency tree content to a json file.
 func (depTree *DependencyTree) Dump(filename string) error {
-	added := make(map[string]bool) // string is package name.
-	metas := make([]PackageMeta, 0)
+	metas := make(map[string]PackageMeta) // string is package name.
 
-	depTree.TraversalDeep(func(node *DependencyTree) error {
-		if _, ok := added[node.Context.PackageName]; ok {
+	err := depTree.TraversalDeep(func(node *DependencyTree) error {
+		if _, ok := metas[node.Context.PackageName]; ok {
 			return nil // the package have already been added to map.
 		}
-		metas = append(metas, PackageMeta{
-			PackageName:  node.Context.PackageName,
+		metas[node.Context.PackageName] = PackageMeta{
 			SrcPath:      node.Context.SrcPath,
 			Builder:      node.Builder,
 			SelfBuild:    node.SelfBuild,
 			CMakeLib:     node.CMakeLib,
 			SelfCMakeLib: node.SelfCMakeLib,
-		})
-		added[node.Context.PackageName] = true
+		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
 	// buffer.WriteString()
 	if content, err := json.Marshal(metas); err != nil { // unmarshal json to struct
@@ -70,7 +69,9 @@ func (depTree *DependencyTree) Dump(filename string) error {
 		if dumpFile, err := os.Create(filename); err != nil {
 			return err
 		} else {
-			dumpFile.Write(content)
+			if _, err := dumpFile.Write(content); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -99,7 +100,7 @@ func (depTree *DependencyTree) ListDeps() ([]string, error) {
 
 // recover the dependency tree from a json file.
 // the result is saved in variable deps.
-func DepTreeRecover(metas *[]PackageMeta, filename string) error {
+func DepTreeRecover(metas *map[string]PackageMeta, filename string) error {
 	if depFile, err := os.Open(filename); err != nil { // file open error or not exists.
 		return err
 	} else {

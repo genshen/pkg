@@ -33,6 +33,7 @@ func init() {
 	buildCommand.FlagSet.StringVar(&cmd.PkgHome, "p", pwd, "absolute or relative path for pkg home.")
 	buildCommand.FlagSet.StringVar(&cmd.PkgName, "pkg", "", "install a specific package, default is all packages.")
 	buildCommand.FlagSet.BoolVar(&cmd.sh, "sh", false, "skip building, but generate shell script for building packages.")
+	buildCommand.FlagSet.BoolVar(&cmd.self, "self", false, "only build the package specified by `pkg` option(not build dependency packages)")
 	buildCommand.FlagSet.BoolVar(&cmd.verbose, "verbose", false, "show building logs while installing package(s).")
 
 	buildCommand.FlagSet.Usage = buildCommand.Usage // use default usage provided by cmds.Command.
@@ -44,8 +45,9 @@ type install struct {
 	PkgHome string
 	PkgName string
 	sh      bool // generate shell script for building packages(sh)
+	self    bool // not build build dependency packages.
 	verbose bool // log the building log (verbose)
-	Metas   []pkg.PackageMeta
+	Metas   map[string]pkg.PackageMeta
 }
 
 func (b *install) PreRun() error {
@@ -76,34 +78,29 @@ func (b *install) Run() error {
 	// compile and install the source code.
 	// besides, you can also just use source code in your project (e.g. use cmake package in cmake project).
 	var options = struct {
-		Metas []pkg.PackageMeta
-		root  bool
-	}{nil, true}
+		lists []string
+		Metas map[string]pkg.PackageMeta
+	}{nil, b.Metas}
 
 	if b.PkgName != "" { // build a specific package, not all packages.
-		// travel the tree to find the package.
-		var found = false
-		for _, v := range b.Metas {
-			if v.PackageName == b.PkgName {
-				// save the matched tree node.
-				found = true
-				options.Metas = make([]pkg.PackageMeta, 1)
-				options.Metas = append(options.Metas, v)
-				break
+		if b.self { // only build one package
+			options.lists = make([]string, 0, 1)
+			options.lists = append(options.lists, b.PkgName)
+		} else { // also build its dependencies.
+			if pkgLists, err := pkg.LoadListFromGraph(pkg.GetDepGraphPath(b.PkgHome), b.PkgName); err != nil {
+				return err
+			} else {
+				options.lists = pkgLists
+				options.lists = append(options.lists, b.PkgName)
 			}
 		}
-		if !found {
-			return errors.New(fmt.Sprintf("package %s not found", b.PkgName))
-		}
-		options.root = false
 	} else {
-		options.Metas = b.Metas
-		// remove root package building.
-		for i, v := range options.Metas {
-			if v.PackageName == "" {
-				options.Metas = append(options.Metas[:i], options.Metas[i+1:]...)
-				break
-			}
+		// set default building packages if PkgName is not specified.
+		b.PkgName = pkg.RootPKG
+		if pkgLists, err := pkg.LoadListFromGraph(pkg.GetDepGraphPath(b.PkgHome), b.PkgName); err != nil {
+			return err
+		} else {
+			options.lists = pkgLists
 		}
 	}
 
@@ -113,14 +110,14 @@ func (b *install) Run() error {
 		} else {
 			buffWriter := bufio.NewWriter(shellFile)
 			defer buffWriter.Flush()
-			if err := generateShell(buffWriter, options.Metas, b.PkgHome); err != nil {
+			if err := generateShell(buffWriter, options.lists, options.Metas, b.PkgHome); err != nil {
 				return err
 			}
 
 			log.Info("pkg building shell script generated at ", pkg.GetPkgBuildPath(b.PkgHome))
 		}
 	} else {
-		if err := buildPkg(options.Metas, b.PkgHome, b.verbose); err != nil {
+		if err := buildPkg(options.lists, options.Metas, b.PkgHome, b.verbose); err != nil {
 			return err
 		}
 		log.Info("all packages installed successfully.")
