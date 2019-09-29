@@ -1,6 +1,6 @@
 ## pkg
 # docker build --rm=true  -t genshen/pkg:0.2.0 .
-FROM golang:1.12 as builder
+FROM golang:1.13.1 as builder
 
 MAINTAINER genshen genshenchu@gmail.com
 

@@ -1,6 +1,6 @@
 module github.com/genshen/pkg
 
-go 1.12
+go 1.13
 
 require (
 	github.com/dsnet/compress v0.0.1 // indirect
