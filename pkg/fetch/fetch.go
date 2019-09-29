@@ -94,7 +94,14 @@ func (f *fetch) Run() error {
 	}
 
 	// dump all packages's dependencies.
-	f.ListDeps()
+	if file, err := os.Create(pkg.GetDepGraphPath(f.PkgHome)); err != nil {
+		return err
+	} else {
+		defer file.Close()
+		if err := f.DepTree.MarshalGraph(file); err != nil {
+			return err
+		}
+	}
 	log.Info("fetch succeeded.")
 	return nil
 }
@@ -118,6 +125,10 @@ func (f *fetch) installSubDependency(installPath string, depTree *pkg.Dependency
 				return err
 			}
 
+			// if packages name is not specified, set it as root package.
+			if depTree.Context.PackageName == "" {
+				depTree.Context.PackageName = pkg.RootPKG
+			}
 			// add to build this package.
 			// only all its dependency packages are downloaded, can this package be built.
 			if build, ok := pkgs.Build[runtime.GOOS]; ok {
@@ -224,40 +235,4 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 		deps = append(deps, &dep)
 	}
 	return deps, nil
-}
-
-func (f *fetch) ListDeps() error {
-	if file, err := os.Create(pkg.GetDepGraphPath(f.PkgHome)); err != nil {
-		return err
-	} else {
-		defer file.Close()
-
-		// dump direct and indirect dependencies of each package.
-		pkgTraversalFlag := make(map[string]bool)
-		err := f.DepTree.TraversalDeep(func(tree *pkg.DependencyTree) error {
-			if _, ok := (pkgTraversalFlag)[tree.Context.PackageName]; ok {
-				return nil // skip
-			}
-			p, err := tree.ListDeps();
-			if err != nil {
-				return err
-			}
-			// write package name
-			if _, err := file.WriteString(tree.Context.PackageName + ": "); err != nil {
-				return err
-			}
-			// dump dependencies list to file.
-			if _, err := fmt.Fprintln(file, p); err != nil {
-				return err
-			}
-
-			pkgTraversalFlag[tree.Context.PackageName] = true
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

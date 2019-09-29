@@ -22,9 +22,12 @@ const (
 	CMakeVendorPath = "${VENDOR_PATH}"
 )
 
+const RootPKG = "root"
+
 type Pkg struct {
 	Version  int                 `yaml:"version"`
 	Args     map[string]string   `yaml:"args"`
+	Name     string              `yaml:"name"`
 	Packages Packages            `yaml:"packages"`
 	Build    map[string][]string `yaml:"build"`
 	CMakeLib string              `yaml:"cmake_lib"`
