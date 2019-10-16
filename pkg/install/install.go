@@ -9,7 +9,6 @@ import (
 	"github.com/genshen/pkg"
 	log "github.com/sirupsen/logrus"
 	"os"
-	"path/filepath"
 )
 
 var buildCommand = &cmds.Command{
@@ -55,7 +54,7 @@ func (b *install) PreRun() error {
 		return errors.New("flag p is required")
 	}
 	// check sum file
-	pkgSumPath := filepath.Join(b.PkgHome, pkg.PkgSumFileName)
+	pkgSumPath := pkg.GetPkgSumPath(b.PkgHome)
 	if fileInfo, err := os.Stat(pkgSumPath); err != nil {
 		return fmt.Errorf(`stat file %s failed, make sure you have run "pkg install"; error: %s`, pkgSumPath, err)
 	} else if fileInfo.IsDir() {

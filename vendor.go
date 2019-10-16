@@ -77,7 +77,7 @@ func GetDepGraphPath(base string) string {
 }
 
 func GetPkgSumPath(base string) string {
-	return filepath.Join(base, BuildShellName)
+	return filepath.Join(base, PkgSumFileName)
 }
 
 // return @base/vendor/src/@packageName
