@@ -189,7 +189,7 @@ func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.
 		// check target directory to save src.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
 			if err := filesSrc(srcDes, key, filePkg.Path, filePkg.Files); err != nil {
-				// todo rollback, clean src.
+				_ = os.RemoveAll(srcDes)
 				return nil, err
 			}
 			status = pkg.DlStatusOk
@@ -253,7 +253,7 @@ func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.
 		// check directory, if not exists, then create it.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
 			if err := gitSrc(f.Auth, srcDes, key, gitPkg.Path, gitPkg.Hash, gitPkg.Branch, gitPkg.Tag); err != nil {
-				// todo rollback, clean src.
+				_ = os.RemoveAll(srcDes)
 				return nil, err
 			}
 			status = pkg.DlStatusOk
