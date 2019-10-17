@@ -42,6 +42,7 @@ func init() {
 type export struct {
 	output string
 	home   string
+	metas  map[string]pkg.PackageMeta
 }
 
 func (e *export) PreRun() error {
@@ -59,15 +60,39 @@ func (e *export) PreRun() error {
 	} else if fileInfo.IsDir() {
 		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
 	}
+
+	// check sum file
+	pkgSumPath := pkg.GetPkgSumPath(e.home)
+	if fileInfo, err := os.Stat(pkgSumPath); err != nil {
+		return fmt.Errorf(`stat file %s failed, make sure you have run "pkg install"; error: %s`, pkgSumPath, err)
+	} else if fileInfo.IsDir() {
+		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
+	}
+	// resolve sum file.
+	if err := pkg.DepTreeRecover(&e.metas, pkgSumPath); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (e *export) Run() error {
 	tar := archiver.Tar{}
-	if err := tar.Archive([]string{
-		pkg.GetPkgSumPath(e.home),
-		pkg.GetSrcPath(e.home),
-	}, e.output); err != nil {
+
+	tarFiles := make([]string, 0, len(e.metas))
+	tarFiles = append(tarFiles, pkg.GetPkgSumPath(e.home))
+	for pkgName, meta := range e.metas {
+		if pkgName == pkg.RootPKG {
+			continue
+		}
+
+		if packageSrcPath, err := pkg.GetPackageHomeSrcPath(pkgName, meta.Version); err != nil {
+			return err
+		} else {
+			tarFiles = append(tarFiles, packageSrcPath)
+		}
+	}
+
+	if err := tar.Archive(tarFiles, e.output); err != nil {
 		return err
 	}
 	log.Info(fmt.Sprintf("export succeeded, file is saved at %s.", e.output))
