@@ -73,7 +73,13 @@ func (f *fetch) PreRun() error {
 }
 
 func (f *fetch) Run() error {
-	// build pkg.json and download source code (json file must exists).
+	// build pkg.yaml and download source code (yaml file must exists).
+	pkgSrcDir, err := pkg.GetHomeSrcPath()
+	if err != nil {
+		return err
+	}
+	// fetch packages to user home directory.
+	log.Info("packages will be downloaded to directory ", pkgSrcDir)
 	if err := f.installSubDependency(f.PkgHome, &f.DepTree); err != nil {
 		return err
 	}
@@ -88,8 +94,8 @@ func (f *fetch) Run() error {
 
 	// generating cmake script to include dependency libs.
 	// the generated cmake file is stored at where pkg command runs.
-	// for root package, its srcHome equals to PkgHome.
-	if err := createPkgDepCmake(f.PkgHome, f.PkgHome, &f.DepTree); err != nil {
+	// for project package, its srcHome equals to PkgHome.
+	if err := createPkgDepCmake(f.PkgHome, f.PkgHome, true, &f.DepTree); err != nil {
 		return err
 	}
 
@@ -106,18 +112,18 @@ func (f *fetch) Run() error {
 	return nil
 }
 
-// install dependency in a dependency, installPath is the root path of sub-dependency(always be the project root).
+// install dependencies to a directory, installPath is the root path of sub-dependency(always be the project root).
 // todo circle detect
-func (f *fetch) installSubDependency(installPath string, depTree *pkg.DependencyTree) error {
-	if pkgJsonPath, err := os.Open(filepath.Join(installPath, pkg.PkgFileName)); err != nil {
+func (f *fetch) installSubDependency(pkgSrcPath string, depTree *pkg.DependencyTree) error {
+	if pkgYamlPath, err := os.Open(filepath.Join(pkgSrcPath, pkg.PkgFileName)); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		} else {
 			return err
 		}
 	} else { // pkg.yaml exists.
-		defer pkgJsonPath.Close()
-		if bytes, err := ioutil.ReadAll(pkgJsonPath); err != nil { // read file contents
+		defer pkgYamlPath.Close()
+		if bytes, err := ioutil.ReadAll(pkgYamlPath); err != nil { // read file contents
 			return err
 		} else {
 			pkgs := pkg.Pkg{}
@@ -173,8 +179,13 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 	}
 	// download files src, and add it to build tree.
 	for key, filePkg := range packages.FilesPackages {
-		srcDes := pkg.GetPackageSrcPath(pkgHome, key)
 		status := pkg.DlStatusEmpty
+		version := "latest"
+		srcDes, err := pkg.GetPackageHomeSrcPath(key, version)
+		if err != nil {
+			return nil, err
+		}
+		// check target directory to save src.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
 			if err := filesSrc(srcDes, key, filePkg.Path, filePkg.Files); err != nil {
 				// todo rollback, clean src.
@@ -196,16 +207,32 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 			DlStatus: status,
 			CMakeLib: filePkg.CMakeLib,
 			Context: pkg.DepPkgContext{
-				SrcPath:     pkg.GetPackageSrcPath("", key), // make it relative path.
+				SrcPath:     srcDes, // todo make is relative path
 				PackageName: key,
+				Version:     version,
 			},
 		}
 		deps = append(deps, &dep)
 	}
 	// download git src, and add it to build tree.
 	for key, gitPkg := range packages.GitPackages {
-		srcDes := pkg.GetPackageSrcPath(pkgHome, key)
+		// check version
+		version := ""
+		if gitPkg.Branch != "" {
+			version = gitPkg.Branch
+		} else if gitPkg.Tag != "" {
+			version = gitPkg.Tag
+		} else if gitPkg.Hash != "" {
+			version = gitPkg.Hash
+		} else {
+			return nil, errors.New("version not set")
+		}
+		// set save directory path
 		status := pkg.DlStatusEmpty
+		srcDes, err := pkg.GetPackageHomeSrcPath(key, version)
+		if err != nil {
+			return nil, err
+		}
 		// check directory, if not exists, then create it.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
 			if err := gitSrc(f.Auth, srcDes, key, gitPkg.Path, gitPkg.Hash, gitPkg.Branch, gitPkg.Tag); err != nil {
@@ -228,8 +255,9 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 			DlStatus: status,
 			CMakeLib: gitPkg.CMakeLib,
 			Context: pkg.DepPkgContext{
-				SrcPath:     pkg.GetPackageSrcPath("", key), // make it relative path.
+				SrcPath:     srcDes, // todo make it relative path.
 				PackageName: key,
+				Version:     version,
 			},
 		}
 		deps = append(deps, &dep)

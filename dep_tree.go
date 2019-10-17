@@ -30,11 +30,13 @@ type DependencyTree struct {
 type DepPkgContext struct {
 	PackageName string
 	SrcPath     string
+	Version     string
 }
 
 // package metadata used in sum file.
 type PackageMeta struct {
 	SrcPath      string
+	Version      string
 	Builder      []string // outer builder (lib used by others)
 	SelfBuild    []string // inner builder (shows how this package is built)
 	CMakeLib     string   // outer cmake script to add this lib.
@@ -51,6 +53,7 @@ func (depTree *DependencyTree) Dump(filename string) error {
 		}
 		metas[node.Context.PackageName] = PackageMeta{
 			SrcPath:      node.Context.SrcPath,
+			Version:      node.Context.Version,
 			Builder:      node.Builder,
 			SelfBuild:    node.SelfBuild,
 			CMakeLib:     node.CMakeLib,

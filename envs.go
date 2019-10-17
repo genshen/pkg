@@ -27,17 +27,17 @@ func AddVendorPathEnv(pkgRoot string) {
 }
 
 // pkgRoot: the root directory of pkg.yaml
-func AddPathEnv(packageName string) error {
+func AddPathEnv(packageName string, packageSrcPath string) error {
 	if root, ok := vars[PKGROOT]; !ok {
 		return errors.New("pkg root variable not set")
 	} else {
 		vars["CACHE"] = GetCachePath(root, packageName)        // vendor/cache/@pkg
 		vars["PKG_DIR"] = GetPkgPath(root, packageName)        // vendor/pkg/@pkg
-		vars["SRC_DIR"] = GetPackageSrcPath(root, packageName) // vendor/src/@pkg
-		// todo vars["PKG_SRC"] = pkg.GetPackageSrcPath(root, packageName)
 		vars["PKG_INC"] = GetPkgIncludePath(root, packageName) // vendor/pkg/@pkg/include
 		// CMAKE_VENDOR_PATH_PKG
 		vars["CMAKE_VENDOR_PATH_PKG"] = GetCMakeVendorPkgPath(packageName) // ${VENDOR_PATH}/pkg/@pkg
+		// todo vars["PKG_SRC"] = pkg.GetPackageHomeSrcPath(root, packageName)
+		vars["SRC_DIR"] = packageSrcPath
 	}
 	return nil
 }

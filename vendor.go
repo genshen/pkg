@@ -1,6 +1,9 @@
 package pkg
 
-import "path/filepath"
+import (
+	"os"
+	"path/filepath"
+)
 
 const (
 	VendorName    = "vendor"
@@ -11,6 +14,7 @@ const (
 	VendorInclude = "include"
 	VendorLib     = "lib"
 	VendorLib64   = "lib64"
+	VendorHomeSrc = ".pkg/registry/default-pkg/src"
 )
 
 const (
@@ -80,7 +84,16 @@ func GetPkgSumPath(base string) string {
 	return filepath.Join(base, PkgSumFileName)
 }
 
+func GetPackageHomeSrcPath(packageName string, version string) (path string, errs error) {
+	if home, err := os.UserHomeDir(); err != nil {
+		return "", err
+	} else {
+		return filepath.Join(home, VendorHomeSrc, packageName+"@"+version), nil
+	}
+}
+
 // return @base/vendor/src/@packageName
+// deprecated
 func GetPackageSrcPath(base, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorSrc, packageName)
 }
@@ -100,10 +113,14 @@ func GetPkgIncludePath(base string, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorPkg, packageName, VendorInclude)
 }
 
-// return @base/vendor/src
-func GetSrcPath(base string) (path string) {
-	return filepath.Join(base, VendorName, VendorSrc)
+func GetHomeSrcPath() (path string, errs error) {
+	if home, err := os.UserHomeDir(); err != nil {
+		return "", err
+	} else {
+		return filepath.Join(home, VendorHomeSrc), nil
+	}
 }
+
 
 // return @base/vendor/include
 func GetIncludePath(base string) (path string) {
