@@ -51,6 +51,8 @@ func RunIns(pkgHome, packageName, srcPath, ins string, verbose bool) error {
 
 			cmd := exec.Command("sh", "-c", script) // todo only for linux OS or OSX.
 			cmd.Dir = workDir
+			cmakeBuildEnv := fmt.Sprintf("PKG_VENDOR_PATH=%s", pkg.GetVendorPath(pkgHome))
+			cmd.Env = append(os.Environ(), cmakeBuildEnv)
 			if verbose {
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr

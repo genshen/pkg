@@ -32,7 +32,7 @@ func AddPathEnv(packageName string, packageSrcPath string) error {
 		return errors.New("pkg root variable not set")
 	} else {
 		vars["CACHE"] = GetCachePath(root, packageName)        // vendor/cache/@pkg
-		vars["PKG_DIR"] = GetPkgPath(root, packageName)        // vendor/pkg/@pkg
+		vars["PKG_DIR"] = GetPackagePkgPath(root, packageName) // vendor/pkg/@pkg
 		vars["PKG_INC"] = GetPkgIncludePath(root, packageName) // vendor/pkg/@pkg/include
 		// CMAKE_VENDOR_PATH_PKG
 		vars["CMAKE_VENDOR_PATH_PKG"] = GetCMakeVendorPkgPath(packageName) // ${VENDOR_PATH}/pkg/@pkg

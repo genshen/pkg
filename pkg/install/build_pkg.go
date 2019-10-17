@@ -21,8 +21,8 @@ func buildPkg(lists []string, metas map[string]pkg.PackageMeta, pkgHome string, 
 			return fmt.Errorf("package %s not found", item)
 		}
 
-		pkg.AddVendorPathEnv(pkgHome) // use absolute path.
-		pkg.AddPathEnv(item)          // add vars for this package, using relative path.
+		pkg.AddVendorPathEnv(pkgHome)      // use absolute path.
+		pkg.AddPathEnv(item, meta.SrcPath) // add vars for this package, using relative path.
 		// if outer build is specified, then inner build will be ignored.
 		if len(meta.Builder) == 0 {
 			// run inner build,(self build).
@@ -63,8 +63,8 @@ func generateShell(w *bufio.Writer, lists []string, metas map[string]pkg.Package
 			return err
 		}
 
-		pkg.AddVendorPathEnv(pkgHome)                // use absolute path.
-		if err := pkg.AddPathEnv(item); err != nil { // add vars for this package, using relative path.
+		pkg.AddVendorPathEnv(pkgHome)                              // use absolute path.
+		if err := pkg.AddPathEnv(item, meta.SrcPath); err != nil { // add vars for this package, using relative path.
 			return err
 		}
 		// if outer build is specified, then inner build will be ignored.
