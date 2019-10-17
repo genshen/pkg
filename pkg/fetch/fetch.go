@@ -80,7 +80,8 @@ func (f *fetch) Run() error {
 	}
 	// fetch packages to user home directory.
 	log.Info("packages will be downloaded to directory ", pkgSrcDir)
-	if err := f.installSubDependency(f.PkgHome, &f.DepTree); err != nil {
+	pkgLock := make(map[string]string)
+	if err := f.installSubDependency(f.PkgHome, &pkgLock, &f.DepTree); err != nil {
 		return err
 	}
 	// dump dependency tree to file system
@@ -114,7 +115,7 @@ func (f *fetch) Run() error {
 
 // install dependencies to a directory, installPath is the root path of sub-dependency(always be the project root).
 // todo circle detect
-func (f *fetch) installSubDependency(pkgSrcPath string, depTree *pkg.DependencyTree) error {
+func (f *fetch) installSubDependency(pkgSrcPath string, pkgLock *map[string]string, depTree *pkg.DependencyTree) error {
 	if pkgYamlPath, err := os.Open(filepath.Join(pkgSrcPath, pkg.PkgFileName)); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -143,13 +144,13 @@ func (f *fetch) installSubDependency(pkgSrcPath string, depTree *pkg.DependencyT
 			depTree.SelfCMakeLib = pkgs.CMakeLib // add cmake include script for this lib
 			depTree.IsPkgPackage = true
 			// download packages source of direct dependencies.
-			if deps, err := f.dlSrc(f.PkgHome, &pkgs.Packages); err != nil {
+			if deps, err := f.dlSrc(f.PkgHome, pkgLock, &pkgs.Packages); err != nil {
 				return err
 			} else {
 				// add and install sub dependencies for this package.
 				depTree.Dependencies = deps
 				for _, dep := range deps {
-					if err := f.installSubDependency(dep.Context.SrcPath, dep); err != nil {
+					if err := f.installSubDependency(dep.Context.SrcPath, pkgLock, dep); err != nil {
 						return err
 					}
 				}
@@ -163,7 +164,7 @@ func (f *fetch) installSubDependency(pkgSrcPath string, depTree *pkg.DependencyT
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: project root direction.
-func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.DependencyTree, error) {
+func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.Packages) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.
@@ -197,10 +198,10 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 		} else {
 			status = pkg.DlStatusSkip
 			log.WithFields(log.Fields{
-				"pkg":      key,
-				"src_path": srcDes,
+				"pkg": key,
 			}).Info("skipped fetching package, because it already exists.")
 		}
+
 		// add to dependency tree.
 		dep := pkg.DependencyTree{
 			Builder:  filePkg.Package.Build[:],
@@ -233,6 +234,22 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 		if err != nil {
 			return nil, err
 		}
+		// version deciding
+		if ver, ok := (*pkgLock)[key]; ok {
+			newVerDes, err := pkg.GetPackageHomeSrcPath(key, ver)
+			if err != nil {
+				return nil, err
+			}
+			srcDes = newVerDes // use the matched version package
+			version = ver
+			log.WithFields(log.Fields{
+				"pkg":     key,
+				"version": ver,
+			}).Trace("package matches another version.")
+		} else {
+			// log version
+			(*pkgLock)[key] = version
+		}
 		// check directory, if not exists, then create it.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
 			if err := gitSrc(f.Auth, srcDes, key, gitPkg.Path, gitPkg.Hash, gitPkg.Branch, gitPkg.Tag); err != nil {
@@ -249,6 +266,7 @@ func (f *fetch) dlSrc(pkgHome string, packages *pkg.Packages) ([]*pkg.Dependency
 				"src_path": srcDes,
 			}).Info("skipped fetching package, because it already exists.")
 		}
+
 		// add to dependency tree.
 		dep := pkg.DependencyTree{
 			Builder:  gitPkg.Package.Build[:],
