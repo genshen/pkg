@@ -18,12 +18,13 @@ const (
 )
 
 const (
-	PkgFileName     = "pkg.yaml"
-	PkgSumFileName  = VendorName + "/pkg.sum.json"
-	BuildShellName  = "pkg.build.sh"
-	CMakeDep        = "pkg.dep.cmake"
-	DepGraph        = "pkg.graph"
-	CMakeVendorPath = "${VENDOR_PATH}"
+	PkgFileName         = "pkg.yaml"
+	PurgePkgSumFileName = "pkg.sum.json"
+	PkgSumFileName      = VendorName + "/" + PurgePkgSumFileName
+	BuildShellName      = "pkg.build.sh"
+	CMakeDep            = "pkg.dep.cmake"
+	DepGraph            = "pkg.graph"
+	CMakeVendorPath     = "${VENDOR_PATH}"
 )
 
 const RootPKG = "root"
@@ -89,6 +90,15 @@ func GetPackageHomeSrcPath(packageName string, version string) (path string, err
 		return "", err
 	} else {
 		return filepath.Join(home, VendorHomeSrc, packageName+"@"+version), nil
+	}
+}
+
+// return $HOME/.pkg/registry/default-pkg/src
+func GetPkgHomeSrcPath() (path string, errs error) {
+	if home, err := os.UserHomeDir(); err != nil {
+		return "", err
+	} else {
+		return filepath.Join(home, VendorHomeSrc), nil
 	}
 }
 
