@@ -94,7 +94,7 @@ func (i *_import) Run() error {
 		return err
 	} else {
 		// todo move dirs force option
-		srcRootPath, err := pkg.GetPkgHomeSrcPath()
+		srcRootPath, err := pkg.GetHomeSrcPath()
 		if err != nil {
 			return err
 		}

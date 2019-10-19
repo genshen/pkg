@@ -21,8 +21,7 @@ func init() {
 // pkgRoot: the root directory of pkg.yaml
 func AddVendorPathEnv(pkgRoot string) {
 	vars[PKGROOT] = pkgRoot
-	vendorPath := GetVendorPath(pkgRoot)
-	vars["VENDOR_PATH"] = vendorPath
+	vars["VENDOR_PATH"] = GetVendorPath(pkgRoot)
 	vars["INCLUDE"] = GetIncludePath(pkgRoot) // vendor/include
 }
 

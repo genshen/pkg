@@ -13,7 +13,7 @@ import (
 )
 
 // run instruction.
-func RunIns(pkgHome, packageName, srcPath, ins string, verbose bool) error {
+func RunIns(pkgHome, srcPath, ins string, verbose bool) error {
 	ins = strings.Trim(ins, " ")
 	// todo rewrite
 	insTriple := strings.SplitN(ins, " ", 3)

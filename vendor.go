@@ -85,20 +85,11 @@ func GetPkgSumPath(base string) string {
 	return filepath.Join(base, PkgSumFileName)
 }
 
-func GetPackageHomeSrcPath(packageName string, version string) (path string, errs error) {
+func GetPackageHomeSrcPath(packageName string, version string) (string, error) {
 	if home, err := os.UserHomeDir(); err != nil {
 		return "", err
 	} else {
 		return filepath.Join(home, VendorHomeSrc, packageName+"@"+version), nil
-	}
-}
-
-// return $HOME/.pkg/registry/default-pkg/src
-func GetPkgHomeSrcPath() (path string, errs error) {
-	if home, err := os.UserHomeDir(); err != nil {
-		return "", err
-	} else {
-		return filepath.Join(home, VendorHomeSrc), nil
 	}
 }
 
@@ -123,6 +114,7 @@ func GetPkgIncludePath(base string, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorPkg, packageName, VendorInclude)
 }
 
+// return $HOME/.pkg/registry/default-pkg/src
 func GetHomeSrcPath() (path string, errs error) {
 	if home, err := os.UserHomeDir(); err != nil {
 		return "", err

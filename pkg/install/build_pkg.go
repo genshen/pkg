@@ -29,14 +29,14 @@ func buildPkg(lists []string, metas map[string]pkg.PackageMeta, pkgHome string, 
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
 				// replace vars in instruction with real value and run the instruction.
-				if err := RunIns(pkgHome, item, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+				if err := RunIns(pkgHome, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
 					return err
 				}
 			}
 		} else {
 			// run outer build.
 			for _, ins := range meta.Builder {
-				if err := RunIns(pkgHome, item, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+				if err := RunIns(pkgHome, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
 					return err
 				}
 			}
