@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/genshen/pkg"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 // build pkg from dependency tree.
@@ -49,7 +50,20 @@ func buildPkg(lists []string, metas map[string]pkg.PackageMeta, pkgHome string, 
 }
 
 func generateShell(w *bufio.Writer, lists []string, metas map[string]pkg.PackageMeta, pkgHome string) error {
-	if _, err := w.WriteString("#!/bin/sh\n"); err != nil {
+	const shellHead = `#!/bin/sh
+
+export PKG_VENDOR_PATH=%s
+PROJECT_HOME=%s
+PKG_SRC_PATH=%s
+`
+	var pkgSrcPath string
+	if sh, err := pkg.GetHomeSrcPath(); err != nil {
+		return err
+	} else {
+		pkgSrcPath = sh
+	}
+
+	if _, err := w.WriteString(fmt.Sprintf(shellHead, pkg.GetVendorPath(pkgHome), pkgHome, pkgSrcPath)); err != nil {
 		return err
 	}
 
@@ -63,8 +77,9 @@ func generateShell(w *bufio.Writer, lists []string, metas map[string]pkg.Package
 			return err
 		}
 
-		pkg.AddVendorPathEnv(pkgHome)                              // use absolute path.
-		if err := pkg.AddPathEnv(item, meta.SrcPath); err != nil { // add vars for this package, using relative path.
+		pkg.AddVendorPathEnv("$PROJECT_HOME") // use absolute path.
+		// add vars for this package, using short path with env '$PKG_SRC_PATH'.
+		if err := pkg.AddPathEnv(item, strings.Replace(meta.SrcPath, pkgSrcPath, "$PKG_SRC_PATH", 1)); err != nil {
 			return err
 		}
 		// if outer build is specified, then inner build will be ignored.
@@ -72,14 +87,14 @@ func generateShell(w *bufio.Writer, lists []string, metas map[string]pkg.Package
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
 				// replace vars in instruction with real value and run the instruction.
-				if err := WriteIns(w, pkgHome, item, pkg.ProcessEnv(ins)); err != nil {
+				if err := WriteIns(w, "$PROJECT_HOME", item, pkg.ProcessEnv(ins)); err != nil {
 					return err
 				}
 			}
 		} else {
 			// run outer build.
 			for _, ins := range meta.Builder {
-				if err := WriteIns(w, pkgHome, item, pkg.ProcessEnv(ins)); err != nil {
+				if err := WriteIns(w, "$PROJECT_HOME", item, pkg.ProcessEnv(ins)); err != nil {
 					return err
 				}
 			}
