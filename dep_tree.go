@@ -5,7 +5,7 @@
 package pkg
 
 import (
-	"encoding/json"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 )
@@ -35,15 +35,15 @@ type DepPkgContext struct {
 
 // package metadata used in sum file.
 type PackageMeta struct {
-	SrcPath      string `json:"-"`
-	Version      string
-	Builder      []string // outer builder (lib used by others)
-	SelfBuild    []string // inner builder (shows how this package is built)
-	CMakeLib     string   // outer cmake script to add this lib.
-	SelfCMakeLib string   // inner cmake script to add this lib.
+	SrcPath      string   `yaml:"-"`
+	Version      string   `yaml:"version"`
+	Builder      []string `yaml:"builder"`        // outer builder (lib used by others)
+	SelfBuild    []string `yaml:"self_build"`     // inner builder (shows how this package is built)
+	CMakeLib     string   `yaml:"cmake_lib"`      // outer cmake script to add this lib.
+	SelfCMakeLib string   `yaml:"self_cmake_lib"` // inner cmake script to add this lib.
 }
 
-// marshal dependency tree content to a json file.
+// marshal dependency tree content to a yaml file.
 func (depTree *DependencyTree) Dump(filename string) error {
 	metas := make(map[string]PackageMeta) // string is package name.
 
@@ -65,7 +65,7 @@ func (depTree *DependencyTree) Dump(filename string) error {
 	}
 
 	// buffer.WriteString()
-	if content, err := json.Marshal(metas); err != nil { // unmarshal json to struct
+	if content, err := yaml.Marshal(metas); err != nil { // marshal map to sum file of yaml format
 		return err
 	} else {
 		if dumpFile, err := os.Create(filename); err != nil {
@@ -100,7 +100,7 @@ func (depTree *DependencyTree) ListDeps() ([]string, error) {
 	return lists, nil
 }
 
-// recover the dependency tree from a json file.
+// recover the dependency tree from a yaml file.
 // the result is saved in variable deps.
 func DepTreeRecover(metas *map[string]PackageMeta, filename string) error {
 	if depFile, err := os.Open(filename); err != nil { // file open error or not exists.
@@ -110,7 +110,7 @@ func DepTreeRecover(metas *map[string]PackageMeta, filename string) error {
 		if bytes, err := ioutil.ReadAll(depFile); err != nil { // read file contents
 			return err
 		} else {
-			if err := json.Unmarshal(bytes, metas); err != nil { // unmarshal json to struct
+			if err := yaml.Unmarshal(bytes, metas); err != nil { // unmarshal yaml to struct
 				return err
 			}
 			// recover src path

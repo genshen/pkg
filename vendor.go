@@ -20,7 +20,7 @@ const (
 
 const (
 	PkgFileName         = "pkg.yaml"
-	PurgePkgSumFileName = "pkg.sum.json"
+	PurgePkgSumFileName = "pkg.sum.yaml"
 	PkgSumFileName      = VendorName + "/" + PurgePkgSumFileName
 	BuildShellName      = "pkg.build.sh"
 	CMakeDep            = "pkg.dep.cmake"
