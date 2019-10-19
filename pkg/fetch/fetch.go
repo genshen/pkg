@@ -61,6 +61,12 @@ func (f *fetch) PreRun() error {
 		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
 	}
 
+	// check vendor dir
+	vendorDir := pkg.GetVendorPath(f.PkgHome)
+	if err := pkg.CheckDir(vendorDir); err != nil {
+		return err
+	}
+
 	//parse git clone auth file.
 	if config, err := conf.ParseConfig(f.PkgHome); err != nil {
 		return err
