@@ -13,7 +13,7 @@ import (
 )
 
 // run instruction.
-func RunIns(pkgHome, packageName, srcPath, ins string, verbose bool) error {
+func RunIns(pkgHome, srcPath, ins string, verbose bool) error {
 	ins = strings.Trim(ins, " ")
 	// todo rewrite
 	insTriple := strings.SplitN(ins, " ", 3)
@@ -51,6 +51,8 @@ func RunIns(pkgHome, packageName, srcPath, ins string, verbose bool) error {
 
 			cmd := exec.Command("sh", "-c", script) // todo only for linux OS or OSX.
 			cmd.Dir = workDir
+			cmakeBuildEnv := fmt.Sprintf("PKG_VENDOR_PATH=%s", pkg.GetVendorPath(pkgHome))
+			cmd.Env = append(os.Environ(), cmakeBuildEnv)
 			if verbose {
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
@@ -83,7 +85,10 @@ func runInsCopy(target, des string) error {
 	return nil
 }
 
-func WriteIns(w *bufio.Writer, pkgHome, packageName, ins string) error {
+// w: writer
+// pkgHome: path of project
+// packageSrcPath: path of the source code in user home
+func WriteIns(w *bufio.Writer, pkgHome, packageSrcPath, ins string) error {
 	ins = strings.Trim(ins, " ")
 	// todo rewrite
 	insTriple := strings.SplitN(ins, " ", 3)
@@ -96,7 +101,7 @@ func WriteIns(w *bufio.Writer, pkgHome, packageName, ins string) error {
 				return err
 			}
 			if _, err := w.WriteString(fmt.Sprintf("cp -r \"%s\" \"%s\"\n",
-				filepath.Join(pkg.GetPackageSrcPath(pkgHome, packageName), insTriple[1]), insTriple[2])); err != nil {
+				filepath.Join(packageSrcPath, insTriple[1]), insTriple[2])); err != nil {
 				return err
 			}
 		case "RUN":

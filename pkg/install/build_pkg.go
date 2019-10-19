@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/genshen/pkg"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 // build pkg from dependency tree.
@@ -21,21 +22,21 @@ func buildPkg(lists []string, metas map[string]pkg.PackageMeta, pkgHome string, 
 			return fmt.Errorf("package %s not found", item)
 		}
 
-		pkg.AddVendorPathEnv(pkgHome) // use absolute path.
-		pkg.AddPathEnv(item)          // add vars for this package, using relative path.
+		pkg.AddVendorPathEnv(pkgHome)      // use absolute path.
+		pkg.AddPathEnv(item, meta.SrcPath) // add vars for this package, using relative path.
 		// if outer build is specified, then inner build will be ignored.
 		if len(meta.Builder) == 0 {
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
 				// replace vars in instruction with real value and run the instruction.
-				if err := RunIns(pkgHome, item, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+				if err := RunIns(pkgHome, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
 					return err
 				}
 			}
 		} else {
 			// run outer build.
 			for _, ins := range meta.Builder {
-				if err := RunIns(pkgHome, item, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+				if err := RunIns(pkgHome, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
 					return err
 				}
 			}
@@ -49,7 +50,21 @@ func buildPkg(lists []string, metas map[string]pkg.PackageMeta, pkgHome string, 
 }
 
 func generateShell(w *bufio.Writer, lists []string, metas map[string]pkg.PackageMeta, pkgHome string) error {
-	if _, err := w.WriteString("#!/bin/sh\n"); err != nil {
+	const shellHead = `#!/bin/sh
+set -e
+
+export PKG_VENDOR_PATH=%s
+PROJECT_HOME=%s
+PKG_SRC_PATH=%s
+`
+	var pkgSrcPath string
+	if sh, err := pkg.GetHomeSrcPath(); err != nil {
+		return err
+	} else {
+		pkgSrcPath = sh
+	}
+
+	if _, err := w.WriteString(fmt.Sprintf(shellHead, pkg.GetVendorPath(pkgHome), pkgHome, pkgSrcPath)); err != nil {
 		return err
 	}
 
@@ -63,8 +78,11 @@ func generateShell(w *bufio.Writer, lists []string, metas map[string]pkg.Package
 			return err
 		}
 
-		pkg.AddVendorPathEnv(pkgHome)                // use absolute path.
-		if err := pkg.AddPathEnv(item); err != nil { // add vars for this package, using relative path.
+		// using short path with env '$PKG_SRC_PATH'.
+		packageSrc := strings.Replace(meta.SrcPath, pkgSrcPath, "$PKG_SRC_PATH", 1)
+		pkg.AddVendorPathEnv("$PROJECT_HOME") // use absolute path.
+		// add vars for this package
+		if err := pkg.AddPathEnv(item, packageSrc); err != nil {
 			return err
 		}
 		// if outer build is specified, then inner build will be ignored.
@@ -72,14 +90,14 @@ func generateShell(w *bufio.Writer, lists []string, metas map[string]pkg.Package
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
 				// replace vars in instruction with real value and run the instruction.
-				if err := WriteIns(w, pkgHome, item, pkg.ProcessEnv(ins)); err != nil {
+				if err := WriteIns(w, "$PROJECT_HOME", packageSrc, pkg.ProcessEnv(ins)); err != nil {
 					return err
 				}
 			}
 		} else {
 			// run outer build.
 			for _, ins := range meta.Builder {
-				if err := WriteIns(w, pkgHome, item, pkg.ProcessEnv(ins)); err != nil {
+				if err := WriteIns(w, "$PROJECT_HOME", packageSrc, pkg.ProcessEnv(ins)); err != nil {
 					return err
 				}
 			}

@@ -1,6 +1,9 @@
 package pkg
 
-import "path/filepath"
+import (
+	"os"
+	"path/filepath"
+)
 
 const (
 	VendorName    = "vendor"
@@ -11,15 +14,17 @@ const (
 	VendorInclude = "include"
 	VendorLib     = "lib"
 	VendorLib64   = "lib64"
+	VendorHomeSrc = ".pkg/registry/default-pkg/src"
 )
 
 const (
-	PkgFileName     = "pkg.yaml"
-	PkgSumFileName  = VendorName + "/pkg.sum.json"
-	BuildShellName  = "pkg.build.sh"
-	CMakeDep        = "pkg.dep.cmake"
-	DepGraph        = "pkg.graph"
-	CMakeVendorPath = "${VENDOR_PATH}"
+	PkgFileName         = "pkg.yaml"
+	PurgePkgSumFileName = "pkg.sum.json"
+	PkgSumFileName      = VendorName + "/" + PurgePkgSumFileName
+	BuildShellName      = "pkg.build.sh"
+	CMakeDep            = "pkg.dep.cmake"
+	DepGraph            = "pkg.graph"
+	CMakeVendorPath     = "${VENDOR_PATH}"
 )
 
 const RootPKG = "root"
@@ -80,13 +85,22 @@ func GetPkgSumPath(base string) string {
 	return filepath.Join(base, PkgSumFileName)
 }
 
+func GetPackageHomeSrcPath(packageName string, version string) (string, error) {
+	if home, err := os.UserHomeDir(); err != nil {
+		return "", err
+	} else {
+		return filepath.Join(home, VendorHomeSrc, packageName+"@"+version), nil
+	}
+}
+
 // return @base/vendor/src/@packageName
+// deprecated
 func GetPackageSrcPath(base, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorSrc, packageName)
 }
 
 // return @base/vendor/pkg/@packageName
-func GetPkgPath(base string, packageName string) (path string) {
+func GetPackagePkgPath(base string, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorPkg, packageName)
 }
 
@@ -100,9 +114,18 @@ func GetPkgIncludePath(base string, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorPkg, packageName, VendorInclude)
 }
 
-// return @base/vendor/src
-func GetSrcPath(base string) (path string) {
-	return filepath.Join(base, VendorName, VendorSrc)
+// return $HOME/.pkg/registry/default-pkg/src
+func GetHomeSrcPath() (path string, errs error) {
+	if home, err := os.UserHomeDir(); err != nil {
+		return "", err
+	} else {
+		return filepath.Join(home, VendorHomeSrc), nil
+	}
+}
+
+// return @base/vendor/pkg
+func GetPkgPath(base string) (path string) {
+	return filepath.Join(base, VendorName, VendorPkg)
 }
 
 // return @base/vendor/include

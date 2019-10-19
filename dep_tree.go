@@ -30,11 +30,13 @@ type DependencyTree struct {
 type DepPkgContext struct {
 	PackageName string
 	SrcPath     string
+	Version     string
 }
 
 // package metadata used in sum file.
 type PackageMeta struct {
-	SrcPath      string
+	SrcPath      string `json:"-"`
+	Version      string
 	Builder      []string // outer builder (lib used by others)
 	SelfBuild    []string // inner builder (shows how this package is built)
 	CMakeLib     string   // outer cmake script to add this lib.
@@ -50,7 +52,7 @@ func (depTree *DependencyTree) Dump(filename string) error {
 			return nil // the package have already been added to map.
 		}
 		metas[node.Context.PackageName] = PackageMeta{
-			SrcPath:      node.Context.SrcPath,
+			Version:      node.Context.Version,
 			Builder:      node.Builder,
 			SelfBuild:    node.SelfBuild,
 			CMakeLib:     node.CMakeLib,
@@ -110,6 +112,15 @@ func DepTreeRecover(metas *map[string]PackageMeta, filename string) error {
 		} else {
 			if err := json.Unmarshal(bytes, metas); err != nil { // unmarshal json to struct
 				return err
+			}
+			// recover src path
+			for key, meta := range *metas {
+				if srcPath, err := GetPackageHomeSrcPath(key, meta.Version); err != nil {
+					return err
+				} else {
+					meta.SrcPath = srcPath
+					(*metas)[key] = meta
+				}
 			}
 			return nil
 		}
