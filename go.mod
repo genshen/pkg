@@ -12,5 +12,5 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v3 v3.0.0-20191010095647-fc94e3f71652
 )

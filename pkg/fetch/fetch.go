@@ -7,7 +7,7 @@ import (
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"path/filepath"
