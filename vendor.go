@@ -6,15 +6,16 @@ import (
 )
 
 const (
-	VendorName    = "vendor"
-	VendorCache   = "cache"
-	VendorSrc     = "src"
-	VendorPkg     = "pkg"
-	VendorScripts = "scripts"
-	VendorInclude = "include"
-	VendorLib     = "lib"
-	VendorLib64   = "lib64"
-	VendorHomeSrc = ".pkg/registry/default-pkg/src"
+	VendorName        = "vendor"
+	VendorCache       = "cache"
+	VendorSrc         = "src"
+	VendorPkg         = "pkg"
+	VendorScripts     = "scripts"
+	VendorInclude     = "include"
+	VendorLib         = "lib"
+	VendorLib64       = "lib64"
+	VendorUserHome    = ".pkg"
+	VendorUserHomeSrc = "registry/default-pkg/src"
 )
 
 const (
@@ -86,10 +87,10 @@ func GetPkgSumPath(base string) string {
 }
 
 func GetPackageHomeSrcPath(packageName string, version string) (string, error) {
-	if home, err := os.UserHomeDir(); err != nil {
+	if path, err := GetPkgUserHomeFile(filepath.Join(VendorUserHomeSrc, packageName+"@"+version)); err != nil {
 		return "", err
 	} else {
-		return filepath.Join(home, VendorHomeSrc, packageName+"@"+version), nil
+		return path, nil
 	}
 }
 
@@ -115,11 +116,19 @@ func GetPkgIncludePath(base string, packageName string) (path string) {
 }
 
 // return $HOME/.pkg/registry/default-pkg/src
-func GetHomeSrcPath() (path string, errs error) {
+func GetHomeSrcPath() (string, error) {
+	if path, err := GetPkgUserHomeFile(VendorUserHomeSrc); err != nil {
+		return "", err
+	} else {
+		return path, nil
+	}
+}
+
+func GetPkgUserHomeFile(suffixPath string) (string, error) {
 	if home, err := os.UserHomeDir(); err != nil {
 		return "", err
 	} else {
-		return filepath.Join(home, VendorHomeSrc), nil
+		return filepath.Join(home, VendorUserHome, suffixPath), nil
 	}
 }
 

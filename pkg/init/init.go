@@ -5,7 +5,7 @@ import (
 	"flag"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 )
