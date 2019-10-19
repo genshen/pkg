@@ -1,0 +1,4 @@
+auth:
+  github.com:
+    user: githubuser
+    token: my_token

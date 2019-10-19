@@ -3,6 +3,7 @@ package install
 import (
 	"errors"
 	"github.com/genshen/pkg"
+	"github.com/genshen/pkg/conf"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -104,7 +105,7 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 // hash: git commit hash.
 // branch: git branch.
 // tag:  git tag.
-func gitSrc(auths []pkg.Auth, repositoryPrefix string, packageName, gitPath, hash, branch, tag string) error {
+func gitSrc(auths map[string]conf.Auth, repositoryPrefix string, packageName, gitPath, hash, branch, tag string) error {
 	if err := os.MkdirAll(repositoryPrefix, 0744); err != nil {
 		return err
 	}
@@ -114,12 +115,9 @@ func gitSrc(auths []pkg.Auth, repositoryPrefix string, packageName, gitPath, has
 	if gitUrl, err := url.Parse(gitPath); err != nil {
 		return err
 	} else {
-		for _, auth := range auths {
-			if auth.Host == gitUrl.Host {
-				gitUrl.User = url.UserPassword(auth.Username, auth.Token)
-				repoUrl = gitUrl.String()
-				break
-			}
+		if hostAuth, ok := auths[gitUrl.Host]; ok {
+			gitUrl.User = url.UserPassword(hostAuth.Username, hostAuth.Token)
+			repoUrl = gitUrl.String()
 		}
 	}
 
@@ -157,7 +155,7 @@ func gitSrc(auths []pkg.Auth, repositoryPrefix string, packageName, gitPath, has
 		//RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}); err != nil {
 		return err
-	} else { // clone succeed.
+	} else {            // clone succeed.
 		if hash != "" { // if hash is not empty, then checkout to some commit.
 			worktree, err := repos.Worktree()
 			if err != nil {

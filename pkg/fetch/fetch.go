@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
+	"github.com/genshen/pkg/conf"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -44,7 +45,7 @@ func init() {
 type fetch struct {
 	PkgHome string // the absolute path of root 'pkg.json' form command path.
 	DepTree pkg.DependencyTree
-	Auth    []pkg.Auth
+	Auth    map[string]conf.Auth
 }
 
 func (f *fetch) PreRun() error {
@@ -61,10 +62,10 @@ func (f *fetch) PreRun() error {
 	}
 
 	//parse git clone auth file.
-	if parsedAuth, err := pkg.ParseAuth(f.PkgHome); err != nil {
+	if config, err := conf.ParseConfig(f.PkgHome); err != nil {
 		return err
 	} else {
-		f.Auth = parsedAuth[:]
+		f.Auth = config.Auth
 	}
 
 	return nil
