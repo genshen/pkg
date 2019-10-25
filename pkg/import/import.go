@@ -53,13 +53,24 @@ func (i *_import) PreRun() error {
 	if i.home == "" {
 		return errors.New("flag home is required")
 	}
-	// file path check
+	// file path check of pkg.yaml
 	pkgFilePath := filepath.Join(i.home, pkg.PkgFileName)
 	// check pkg.yaml file existence.
 	if fileInfo, err := os.Stat(pkgFilePath); err != nil {
 		return err
 	} else if fileInfo.IsDir() {
 		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
+	}
+
+	// check src dir in user home, import src file here.
+	// and check vendor dir
+	if homeSrcDir, err := pkg.GetHomeSrcPath(); err != nil {
+		return err
+	} else {
+		vendorDir := pkg.GetVendorPath(i.home)
+		if err := pkg.CheckDirLists(vendorDir,homeSrcDir); err != nil {
+			return err
+		}
 	}
 	return nil
 }

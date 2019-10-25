@@ -7,7 +7,8 @@ import (
 	"strings"
 )
 
-func CheckDirectoryLists(dirs ...string) error {
+// check a list of dirs
+func CheckDirLists(dirs ...string) error {
 	for _, dir := range dirs {
 		if err := CheckDir(filepath.Join(dir)); err != nil {
 			return err
