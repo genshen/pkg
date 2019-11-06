@@ -29,14 +29,14 @@ func buildPkg(lists []string, metas map[string]pkg.PackageMeta, pkgHome string, 
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
 				// replace vars in instruction with real value and run the instruction.
-				if err := RunIns(pkgHome, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+				if err := RunIns(pkgHome, item, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
 					return err
 				}
 			}
 		} else {
 			// run outer build.
 			for _, ins := range meta.Builder {
-				if err := RunIns(pkgHome, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+				if err := RunIns(pkgHome, item, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
 					return err
 				}
 			}
@@ -90,14 +90,14 @@ PKG_SRC_PATH=%s
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
 				// replace vars in instruction with real value and run the instruction.
-				if err := WriteIns(w, "$PROJECT_HOME", packageSrc, pkg.ProcessEnv(ins)); err != nil {
+				if err := WriteIns(w, "$PROJECT_HOME", item, packageSrc, pkg.ProcessEnv(ins)); err != nil {
 					return err
 				}
 			}
 		} else {
 			// run outer build.
 			for _, ins := range meta.Builder {
-				if err := WriteIns(w, "$PROJECT_HOME", packageSrc, pkg.ProcessEnv(ins)); err != nil {
+				if err := WriteIns(w, "$PROJECT_HOME", item, packageSrc, pkg.ProcessEnv(ins)); err != nil {
 					return err
 				}
 			}
