@@ -16,27 +16,26 @@ import (
 // run instruction.
 func RunIns(pkgHome, pkgName, srcPath, ins string, verbose bool) error {
 	ins = strings.Trim(ins, " ")
-	// todo rewrite
-	insTriple := strings.SplitN(ins, " ", 3)
-
-	if len(insTriple) <= 0 {
-		return errors.New("no instruction found")
+	triple, err := pkg.ParseIns(ins)
+	if err != nil {
+		return err
 	}
-	switch insTriple[0] {
+
+	switch triple.First {
 	case "CP":
-		if len(insTriple) != 3 {
+		if triple.Second == "" || triple.Third == "" {
 			return errors.New("CP instruction must have src and des")
 		}
 		// run copy.
-		if err := runInsCopy(filepath.Join(srcPath, insTriple[1]), insTriple[2]); err != nil {
+		if err := runInsCopy(filepath.Join(srcPath, triple.Second), triple.Third); err != nil {
 			return err
 		}
 
 	case "RUN":
-		if len(insTriple) != 3 {
+		if triple.Second == "" || triple.Third == "" {
 			return errors.New("RUN instruction must be a triple")
 		}
-		workDir := insTriple[1] // fixme path not contains space.
+		workDir := triple.Second // fixme path not contains space.
 		// remove old work dir files.
 		if _, err := os.Stat(workDir); err != nil {
 			if !os.IsNotExist(err) {
@@ -53,7 +52,7 @@ func RunIns(pkgHome, pkgName, srcPath, ins string, verbose bool) error {
 			return err
 		}
 		// run the command
-		if err := involveShell(pkgHome, workDir, insTriple[2], verbose); err != nil {
+		if err := involveShell(pkgHome, workDir, triple.Third, verbose); err != nil {
 			return err
 		}
 	case "CMAKE": // run cmake commands, format CMAKE {config args} {build args}
@@ -116,35 +115,38 @@ func runInsCopy(target, des string) error {
 func WriteIns(w *bufio.Writer, pkgHome, pkgName, packageSrcPath, ins string) error {
 	ins = strings.Trim(ins, " ")
 	// todo rewrite
-	insTriple := strings.SplitN(ins, " ", 3)
+	triple, err := pkg.ParseIns(ins)
+	if err != nil {
+		return err
+	}
 
-	if len(insTriple) == 3 {
-		switch insTriple[0] {
+	if triple.Second == "" || triple.Third == "" {
+		switch triple.First {
 		case "CP":
 			// run copy.
 			if _, err := w.WriteString(fmt.Sprintf("mkdir -p \"%s\"\n", pkg.GetIncludePath(pkgHome))); err != nil {
 				return err
 			}
 			if _, err := w.WriteString(fmt.Sprintf("cp -r \"%s\" \"%s\"\n",
-				filepath.Join(packageSrcPath, insTriple[1]), insTriple[2])); err != nil {
+				filepath.Join(packageSrcPath, triple.Second), triple.Third)); err != nil {
 				return err
 			}
 		case "RUN":
 			if _, err := w.WriteString(fmt.Sprintf("mkdir -p \"%s\"\ncd \"%s\"\n%s\n",
-				insTriple[1], insTriple[1], insTriple[2])); err != nil {
+				triple.Second, triple.Second, triple.Third)); err != nil {
 				return err
 			}
 		}
 	}
-	if len(insTriple) >= 1 {
-		if insTriple[0] == "CMAKE" {
-			var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\"",
-				packageSrcPath, pkg.GetCachePath(pkgHome, pkgName), pkg.GetPackagePkgPath(pkgHome, pkgName))
-			var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install", pkg.GetCachePath(pkgHome, pkgName))
-			if _, err := w.WriteString(fmt.Sprintf("cd \"%s\"\n%s\n%s\n", pkgHome, configCmd, buildCmd)); err != nil {
-				return err
-			}
+
+	if triple.First == "CMAKE" {
+		var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\"",
+			packageSrcPath, pkg.GetCachePath(pkgHome, pkgName), pkg.GetPackagePkgPath(pkgHome, pkgName))
+		var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install", pkg.GetCachePath(pkgHome, pkgName))
+		if _, err := w.WriteString(fmt.Sprintf("cd \"%s\"\n%s\n%s\n", pkgHome, configCmd, buildCmd)); err != nil {
+			return err
 		}
 	}
+
 	return nil
 }
