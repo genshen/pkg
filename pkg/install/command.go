@@ -56,9 +56,25 @@ func RunIns(pkgHome, pkgName, srcPath, ins string, verbose bool) error {
 			return err
 		}
 	case "CMAKE": // run cmake commands, format CMAKE {config args} {build args}
+		packageCacheDir := pkg.GetCachePath(pkgHome, pkgName)
+		// remove old work dir files.
+		if _, err := os.Stat(packageCacheDir); err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+		} else {
+			if err := os.RemoveAll(packageCacheDir); err != nil {
+				return err
+			}
+		}
+		// make dirs
+		if err := os.MkdirAll(packageCacheDir, 0744); err != nil {
+			return err
+		}
+		// create script
 		var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\"",
-			srcPath, pkg.GetCachePath(pkgHome, pkgName), pkg.GetPackagePkgPath(pkgHome, pkgName))
-		var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install", pkg.GetCachePath(pkgHome, pkgName))
+			srcPath, packageCacheDir, pkg.GetPackagePkgPath(pkgHome, pkgName))
+		var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install", packageCacheDir)
 		// todo user customized config
 		if err := involveShell(pkgHome, pkgHome, configCmd, verbose); err != nil {
 			return err
