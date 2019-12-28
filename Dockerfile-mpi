@@ -1,0 +1,23 @@
+## pkg with mpi env (and clang toolchain, cmake, make).
+## docker build --rm=true  -t genshen/pkg:0.3.2-clang9-mpi .
+
+FROM genshen/pkg:0.3.2-clang9
+
+ARG USER=mpi
+ENV USER_HOME="/home/${USER}"  WORKDIR="/project"  MPI_HOME=/usr/local/mpi-3.3.1
+
+COPY --from=genshen/mpich:3.3.1-clang9.0.0 /usr/local/mpi-3.3.1  /usr/local/mpi-3.3.1
+
+RUN apk add --no-cache sudo \
+    && mkdir -p /usr/local/include  /usr/local/bin  /usr/local/lib  \
+    && ln -s ${MPI_HOME}/bin/* /usr/local/bin/  \
+    && ln -s ${MPI_HOME}/include/* /usr/local/include \
+    && ln -s ${MPI_HOME}/lib/* /usr/local/lib  \
+    && adduser -D ${USER} \
+    && echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+    && chown -R ${USER}:${USER} ${USER_HOME} \
+    && mkdir -p ${WORKDIR} \
+    && chown -R ${USER}:${USER} ${WORKDIR}
+
+WORKDIR ${WORKDIR}
+USER ${USER}
