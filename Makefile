@@ -15,7 +15,7 @@ pkg-windows-amd64.exe:
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o pkg-windows-amd64.exe ${PACKAGE}
 
 pkg :
-	go build -o pkg
+	go build -o pkg ${PACKAGE}
 
 clean:
 	rm -f pkg-linux-amd64 pkg-linux-arm64 pkg-darwin-amd64 pkg-windows-amd64.exe
