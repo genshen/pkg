@@ -84,12 +84,7 @@ func (e *export) Run() error {
 		if pkgName == pkg.RootPKG {
 			continue
 		}
-
-		if packageSrcPath, err := pkg.GetPackageHomeSrcPath(pkgName, meta.Version); err != nil {
-			return err
-		} else {
-			tarFiles = append(tarFiles, packageSrcPath)
-		}
+		tarFiles = append(tarFiles, meta.VendorSrcPath(e.home))
 	}
 
 	if err := tar.Archive(tarFiles, e.output); err != nil {

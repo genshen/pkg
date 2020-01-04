@@ -7,6 +7,7 @@ import (
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
 	"github.com/genshen/pkg/conf"
+	"github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -91,6 +92,15 @@ func (f *fetch) Run() error {
 	if err := f.installSubDependency(f.PkgHome, &pkgLock, &f.DepTree); err != nil {
 		return err
 	}
+
+	// cope packages in user home directory to vendor/src directory
+	f.DepTree.TraversalDeep(func(tree *pkg.DependencyTree) error {
+		if err := copy.Copy(tree.Context.HomeCacheSrcPath(), tree.Context.VendorSrcPath(f.PkgHome)); err != nil {
+			return err
+		}
+		return nil
+	})
+
 	// dump dependency tree to file system
 	if err := f.DepTree.Dump(pkg.GetPkgSumPath(f.PkgHome)); err == nil { //fixme
 		log.WithFields(log.Fields{
@@ -146,9 +156,9 @@ func (f *fetch) installSubDependency(pkgSrcPath string, pkgLock *map[string]stri
 			// add to build this package.
 			// only all its dependency packages are downloaded, can this package be built.
 			if build, ok := pkgs.Build[runtime.GOOS]; ok {
-				depTree.SelfBuild = build[:]
+				depTree.Context.SelfBuild = build[:]
 			}
-			depTree.SelfCMakeLib = pkgs.CMakeLib // add cmake include script for this lib
+			depTree.Context.SelfCMakeLib = pkgs.CMakeLib // add cmake include script for this lib
 			depTree.IsPkgPackage = true
 			// download packages source of direct dependencies.
 			if deps, err := f.dlSrc(f.PkgHome, pkgLock, &pkgs.Packages); err != nil {
@@ -157,7 +167,7 @@ func (f *fetch) installSubDependency(pkgSrcPath string, pkgLock *map[string]stri
 				// add and install sub dependencies for this package.
 				depTree.Dependencies = deps
 				for _, dep := range deps {
-					if err := f.installSubDependency(dep.Context.SrcPath, pkgLock, dep); err != nil {
+					if err := f.installSubDependency(dep.Context.HomeCacheSrcPath(), pkgLock, dep); err != nil {
 						return err
 					}
 				}
@@ -189,7 +199,7 @@ func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.
 	for key, filePkg := range packages.FilesPackages {
 		status := pkg.DlStatusEmpty
 		version := "latest"
-		srcDes, err := pkg.GetPackageHomeSrcPath(key, version)
+		srcDes, err := pkg.GetCachedPackageSrcPath(key, version)
 		if err != nil {
 			return nil, err
 		}
@@ -211,13 +221,12 @@ func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.
 
 		// add to dependency tree.
 		dep := pkg.DependencyTree{
-			Builder:  filePkg.Package.Build[:],
 			DlStatus: status,
-			CMakeLib: filePkg.CMakeLib,
-			Context: pkg.DepPkgContext{
-				SrcPath:     srcDes, // todo make is relative path
+			Context: pkg.PackageMeta{
 				PackageName: key,
 				Version:     version,
+				Builder:     filePkg.Package.Build[:],
+				CMakeLib:    filePkg.CMakeLib,
 			},
 		}
 		deps = append(deps, &dep)
@@ -237,13 +246,13 @@ func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.
 		}
 		// set save directory path
 		status := pkg.DlStatusEmpty
-		srcDes, err := pkg.GetPackageHomeSrcPath(key, version)
+		srcDes, err := pkg.GetCachedPackageSrcPath(key, version)
 		if err != nil {
 			return nil, err
 		}
 		// version deciding
 		if ver, ok := (*pkgLock)[key]; ok {
-			newVerDes, err := pkg.GetPackageHomeSrcPath(key, ver)
+			newVerDes, err := pkg.GetCachedPackageSrcPath(key, ver)
 			if err != nil {
 				return nil, err
 			}
@@ -276,13 +285,12 @@ func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.
 
 		// add to dependency tree.
 		dep := pkg.DependencyTree{
-			Builder:  gitPkg.Package.Build[:],
 			DlStatus: status,
-			CMakeLib: gitPkg.CMakeLib,
-			Context: pkg.DepPkgContext{
-				SrcPath:     srcDes, // todo make it relative path.
+			Context: pkg.PackageMeta{
 				PackageName: key,
 				Version:     version,
+				CMakeLib:    gitPkg.CMakeLib,
+				Builder:     gitPkg.Package.Build[:],
 			},
 		}
 		deps = append(deps, &dep)

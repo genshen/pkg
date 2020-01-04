@@ -23,20 +23,20 @@ func buildPkg(lists []string, metas map[string]pkg.PackageMeta, pkgHome string, 
 		}
 
 		pkg.AddVendorPathEnv(pkgHome)      // use absolute path.
-		pkg.AddPathEnv(item, meta.SrcPath) // add vars for this package, using relative path.
+		pkg.AddPathEnv(item, meta.VendorSrcPath(pkgHome)) // add vars for this package, using relative path.
 		// if outer build is specified, then inner build will be ignored.
 		if len(meta.Builder) == 0 {
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
 				// replace vars in instruction with real value and run the instruction.
-				if err := RunIns(pkgHome, item, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+				if err := RunIns(pkgHome, item, meta.VendorSrcPath(pkgHome), pkg.ProcessEnv(ins), verbose); err != nil {
 					return err
 				}
 			}
 		} else {
 			// run outer build.
 			for _, ins := range meta.Builder {
-				if err := RunIns(pkgHome, item, meta.SrcPath, pkg.ProcessEnv(ins), verbose); err != nil {
+				if err := RunIns(pkgHome, item, meta.VendorSrcPath(pkgHome), pkg.ProcessEnv(ins), verbose); err != nil {
 					return err
 				}
 			}
@@ -79,7 +79,7 @@ PKG_SRC_PATH=%s
 		}
 
 		// using short path with env '$PKG_SRC_PATH'.
-		packageSrc := strings.Replace(meta.SrcPath, pkgSrcPath, "$PKG_SRC_PATH", 1)
+		packageSrc := strings.Replace(meta.VendorSrcPath(pkgHome), pkgSrcPath, "$PKG_SRC_PATH", 1)
 		pkg.AddVendorPathEnv("$PROJECT_HOME") // use absolute path.
 		// add vars for this package
 		if err := pkg.AddPathEnv(item, packageSrc); err != nil {

@@ -22,6 +22,7 @@ const (
 	PkgFileName         = "pkg.yaml"
 	PurgePkgSumFileName = "pkg.sum.yaml"
 	PkgSumFileName      = VendorName + "/" + PurgePkgSumFileName
+	VendorSrcDir        = VendorName + "/" + "src"
 	BuildShellName      = "pkg.build.sh"
 	CMakeDep            = "pkg.dep.cmake"
 	DepGraph            = "pkg.graph"
@@ -86,7 +87,15 @@ func GetPkgSumPath(base string) string {
 	return filepath.Join(base, PkgSumFileName)
 }
 
-func GetPackageHomeSrcPath(packageName string, version string) (string, error) {
+func GetPkgSrcPath(base string) string {
+	return filepath.Join(base, VendorSrcDir)
+}
+
+func getPackageVendorSrcPath(base string, packageName string, version string) string {
+	return filepath.Join(base, VendorSrcDir, packageName+"@"+version)
+}
+
+func GetCachedPackageSrcPath(packageName string, version string) (string, error) {
 	if path, err := GetPkgUserHomeFile(filepath.Join(VendorUserHomeSrc, packageName+"@"+version)); err != nil {
 		return "", err
 	} else {

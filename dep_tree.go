@@ -7,6 +7,7 @@ package pkg
 import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"log"
 	"os"
 )
 
@@ -17,30 +18,36 @@ const (
 )
 
 type DependencyTree struct {
-	Context      DepPkgContext
 	Dependencies []*DependencyTree
-	Builder      []string // outer builder (specified by others pkg,)
-	SelfBuild    []string // inner builder (this is specified in package's pkg.yaml file)
-	CMakeLib     string   // outer cmake script to add this lib.
-	SelfCMakeLib string   // inner cmake script to add this lib.
+	Context      PackageMeta
 	DlStatus     int
 	IsPkgPackage bool
 }
 
-type DepPkgContext struct {
-	PackageName string
-	SrcPath     string
-	Version     string
-}
-
 // package metadata used in sum file.
 type PackageMeta struct {
-	SrcPath      string   `yaml:"-"`
+	PackageName string `yaml:"pkg"`
+	//	SrcPath      string   `yaml:"-"`
 	Version      string   `yaml:"version"`
-	Builder      []string `yaml:"builder"`        // outer builder (lib used by others)
-	SelfBuild    []string `yaml:"self_build"`     // inner builder (shows how this package is built)
+	Builder      []string `yaml:"builder"`        // outer builder (lib used by others, specified by others pkg)
+	SelfBuild    []string `yaml:"self_build"`     // inner builder (shows how this package is built, specified in package's pkg.yaml file)
 	CMakeLib     string   `yaml:"cmake_lib"`      // outer cmake script to add this lib.
 	SelfCMakeLib string   `yaml:"self_cmake_lib"` // inner cmake script to add this lib.
+}
+
+// return directory path of cached source in user home
+func (ctx *PackageMeta) HomeCacheSrcPath() string {
+	if path, err := GetCachedPackageSrcPath(ctx.PackageName, ctx.Version); err != nil {
+		log.Fatal(err) // todo raise error
+		return ""
+	} else {
+		return path
+	}
+}
+
+// return directory path of source in vendor
+func (ctx *PackageMeta) VendorSrcPath(base string) string {
+	return getPackageVendorSrcPath(base, ctx.PackageName, ctx.Version)
 }
 
 // marshal dependency tree content to a yaml file.
@@ -52,11 +59,12 @@ func (depTree *DependencyTree) Dump(filename string) error {
 			return nil // the package have already been added to map.
 		}
 		metas[node.Context.PackageName] = PackageMeta{
+			PackageName:  node.Context.PackageName,
 			Version:      node.Context.Version,
-			Builder:      node.Builder,
-			SelfBuild:    node.SelfBuild,
-			CMakeLib:     node.CMakeLib,
-			SelfCMakeLib: node.SelfCMakeLib,
+			Builder:      node.Context.Builder,
+			SelfBuild:    node.Context.SelfBuild,
+			CMakeLib:     node.Context.CMakeLib,
+			SelfCMakeLib: node.Context.SelfCMakeLib,
 		}
 		return nil
 	})
@@ -101,7 +109,7 @@ func (depTree *DependencyTree) ListDeps() ([]string, error) {
 }
 
 // recover the dependency tree from a yaml file.
-// the result is saved in variable deps.
+// the result is saved in variable metas.
 func DepTreeRecover(metas *map[string]PackageMeta, filename string) error {
 	if depFile, err := os.Open(filename); err != nil { // file open error or not exists.
 		return err
@@ -112,15 +120,6 @@ func DepTreeRecover(metas *map[string]PackageMeta, filename string) error {
 		} else {
 			if err := yaml.Unmarshal(bytes, metas); err != nil { // unmarshal yaml to struct
 				return err
-			}
-			// recover src path
-			for key, meta := range *metas {
-				if srcPath, err := GetPackageHomeSrcPath(key, meta.Version); err != nil {
-					return err
-				} else {
-					meta.SrcPath = srcPath
-					(*metas)[key] = meta
-				}
 			}
 			return nil
 		}

@@ -68,7 +68,7 @@ func (i *_import) PreRun() error {
 		return err
 	} else {
 		vendorDir := pkg.GetVendorPath(i.home)
-		if err := pkg.CheckDirLists(vendorDir,homeSrcDir); err != nil {
+		if err := pkg.CheckDirLists(vendorDir, homeSrcDir); err != nil {
 			return err
 		}
 	}
@@ -105,13 +105,13 @@ func (i *_import) Run() error {
 		return err
 	} else {
 		// todo move dirs force option
-		srcRootPath, err := pkg.GetHomeSrcPath()
+		// srcRootPath, err := pkg.GetHomeSrcPath()
 		if err != nil {
 			return err
 		}
 		// move one by one
 		for _, file := range fileInfo {
-			targetSrcPath := filepath.Join(srcRootPath, file.Name())
+			targetSrcPath := filepath.Join(pkg.GetPkgSrcPath(i.home), file.Name())
 			if fileInfo, err := os.Stat(targetSrcPath); err != nil {
 				if os.IsNotExist(err) { // directory not exists, can import.
 					if err := os.Rename(filepath.Join(importCache, file.Name()), targetSrcPath); err != nil {

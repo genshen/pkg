@@ -90,13 +90,9 @@ func createPkgDepCmake(pkgHome, srcHome string, isProjectPkg bool, depTree *pkg.
 	// create cmake dep file for all its sub/child package.
 	for _, v := range depTree.Dependencies {
 		// for all non-root package, the srcHome is pkgHome/vendor/src/@packageName
-		if p, err := pkg.GetPackageHomeSrcPath(v.Context.PackageName, v.Context.Version); err != nil {
-			return err
-		} else {
-			err := createPkgDepCmake(pkgHome, p, false, v)
-			if err != nil {
-				return err // break loop.
-			}
+		err := createPkgDepCmake(pkgHome, v.Context.VendorSrcPath(pkgHome), false, v)
+		if err != nil {
+			return err // break loop.
 		}
 	}
 	return nil
@@ -122,27 +118,24 @@ func cmakeLib(dep *pkg.DependencyTree, pkgHome string, root bool, cmakeLibSet *m
 		return nil
 	}
 	pkg.AddVendorPathEnv("") // relative path.
-	src, err := pkg.GetPackageHomeSrcPath(dep.Context.PackageName, dep.Context.Version)
-	if err != nil { // vendor/src/@pkg@version
-		return err
-	}
+	src := dep.Context.VendorSrcPath(pkgHome) // vendor/src/@pkg@version
 	pkg.AddPathEnv(dep.Context.PackageName, src) // add vars for this package, using relative path.
 	// generating cmake script.
 	toFile := cmakeDepData{
 		LibName:    dep.Context.PackageName,
-		InnerCMake: dep.SelfCMakeLib,
-		OuterCMake: dep.CMakeLib,
+		InnerCMake: dep.Context.SelfCMakeLib,
+		OuterCMake: dep.Context.CMakeLib,
 		PkgHome:    pkgHome,
 		SrcDir:     src,
 		PkgDir:     pkg.GetPackagePkgPath("", dep.Context.PackageName),
 	}
 	// copy slice, don't modify the original data.
-	toFile.OuterBuildCommand = make([]string, len(dep.Builder))
-	toFile.InnerBuildCommand = make([]string, len(dep.SelfBuild))
-	copy(toFile.OuterBuildCommand, dep.Builder)
-	copy(toFile.InnerBuildCommand, dep.SelfBuild)
+	toFile.OuterBuildCommand = make([]string, len(dep.Context.Builder))
+	toFile.InnerBuildCommand = make([]string, len(dep.Context.SelfBuild))
+	copy(toFile.OuterBuildCommand, dep.Context.Builder)
+	copy(toFile.InnerBuildCommand, dep.Context.SelfBuild)
 
-	if dep.CMakeLib != "" { // ignore self cmake if the cmake in override by outer cmake lib.
+	if dep.Context.CMakeLib != "" { // ignore self cmake if the cmake in override by outer cmake lib.
 		toFile.InnerCMake = ""
 	}
 	if err := renderCMakeBody(toFile, writer); err != nil {
