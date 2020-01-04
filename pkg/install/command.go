@@ -72,9 +72,9 @@ func RunIns(pkgHome, pkgName, srcPath, ins string, verbose bool) error {
 			return err
 		}
 		// create script
-		var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\"",
-			srcPath, packageCacheDir, pkg.GetPackagePkgPath(pkgHome, pkgName))
-		var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install", packageCacheDir)
+		var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",
+			srcPath, packageCacheDir, pkg.GetPackagePkgPath(pkgHome, pkgName), triple.Second)
+		var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install %s", packageCacheDir, triple.Third)
 		// todo user customized config
 		if err := involveShell(pkgHome, pkgHome, configCmd, verbose); err != nil {
 			return err
@@ -156,9 +156,10 @@ func WriteIns(w *bufio.Writer, pkgHome, pkgName, packageSrcPath, ins string) err
 	}
 
 	if triple.First == "CMAKE" {
-		var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\"",
-			packageSrcPath, pkg.GetCachePath(pkgHome, pkgName), pkg.GetPackagePkgPath(pkgHome, pkgName))
-		var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install", pkg.GetCachePath(pkgHome, pkgName))
+		var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",
+			packageSrcPath, pkg.GetCachePath(pkgHome, pkgName), pkg.GetPackagePkgPath(pkgHome, pkgName), triple.Second)
+		var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install %s",
+			pkg.GetCachePath(pkgHome, pkgName), triple.Second)
 		if _, err := w.WriteString(fmt.Sprintf("cd \"%s\"\n%s\n%s\n", pkgHome, configCmd, buildCmd)); err != nil {
 			return err
 		}
