@@ -136,7 +136,7 @@ func WriteIns(w *bufio.Writer, pkgHome, pkgName, packageSrcPath, ins string) err
 		return err
 	}
 
-	if triple.Second == "" || triple.Third == "" {
+	if triple.Second != "" && triple.Third != "" {
 		switch triple.First {
 		case "CP":
 			// run copy.
