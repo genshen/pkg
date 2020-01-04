@@ -94,12 +94,6 @@ func GetPackageHomeSrcPath(packageName string, version string) (string, error) {
 	}
 }
 
-// return @base/vendor/src/@packageName
-// deprecated
-func GetPackageSrcPath(base, packageName string) (path string) {
-	return filepath.Join(base, VendorName, VendorSrc, packageName)
-}
-
 // return @base/vendor/pkg/@packageName
 func GetPackagePkgPath(base string, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorPkg, packageName)
