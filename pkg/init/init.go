@@ -51,8 +51,9 @@ func (i *initialization) Run() error {
 	if pkgFile, err := os.Create(pkgFilePath); err != nil {
 		return err
 	} else {
-		var pkgExample pkg.Pkg
+		var pkgExample pkg.YamlPkg
 		pkgExample.Version = 2
+		pkgExample.PkgName = "github.com/foo/bar"
 		pkgExample.Args = make(map[string]string)
 		if pkgExampleBytes, err := yaml.Marshal(&pkgExample); err != nil {
 			return err

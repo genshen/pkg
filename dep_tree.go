@@ -26,7 +26,8 @@ type DependencyTree struct {
 
 // package metadata used in sum file.
 type PackageMeta struct {
-	PackageName string `yaml:"pkg"`
+	PackageName string `yaml:"pkg"`    // package name (usually it is a path)
+	TargetName  string `yaml:"target"` // cmake package name
 	//	SrcPath      string   `yaml:"-"`
 	Version      string   `yaml:"version"`
 	Builder      []string `yaml:"builder"`        // outer builder (lib used by others, specified by others pkg)
@@ -59,7 +60,7 @@ func (depTree *DependencyTree) Dump(filename string) error {
 			return nil // the package have already been added to map.
 		}
 		metas[node.Context.PackageName] = PackageMeta{
-			PackageName:  node.Context.PackageName,
+			PackageName: node.Context.PackageName,
 			Version:      node.Context.Version,
 			Builder:      node.Context.Builder,
 			SelfBuild:    node.Context.SelfBuild,
