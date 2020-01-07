@@ -1,10 +1,15 @@
 package pkg
 
+import (
+	"fmt"
+)
+
 // for pkg yaml file parsing
 type YamlPkg struct {
 	Version  int                 `yaml:"version"`
 	Args     map[string]string   `yaml:"args"`
 	PkgName  string              `yaml:"pkg"`
+	Packages V1Packages          `yaml:"packages"` // for pkg file version 1
 	Deps     YamlDependencies    `yaml:"dependencies"`
 	Build    map[string][]string `yaml:"build"`
 	CMakeLib string              `yaml:"cmake_lib"`
@@ -16,13 +21,7 @@ type YamlDependencies struct {
 	ArchivePackages map[string]YamlArchivePackage `yaml:"archives"`
 }
 
-type YamlPackage struct {
-	Path             string   `yaml:"path"`     // todo this is not used
-	Override         bool     `yaml:"override"` // override package self build.
-	Build            []string `yaml:"build"`
-	CMakeLib         string   `yaml:"cmake_lib"`
-	CMakeLibOverride bool     `yaml:"cmake_lib_override"`
-}
+type YamlPackage V1Package
 
 type YamlGitPackage struct {
 	YamlPackage `yaml:",inline"`
@@ -37,4 +36,87 @@ type YamlFilesPackage struct {
 
 type YamlArchivePackage struct {
 	YamlPackage `yaml:",inline"`
+}
+
+// for pkg file version 1.
+type V1Packages struct {
+	GitPackages   map[string]V1GitPackage   `yaml:"git"`
+	FilesPackages map[string]V1FilesPackage `yaml:"files"`
+}
+
+type V1Package struct {
+	Path             string   `yaml:"path"`
+	Override         bool     `yaml:"override"` // override package self build.
+	Build            []string `yaml:"build"`
+	CMakeLib         string   `yaml:"cmake_lib"`
+	CMakeLibOverride bool     `yaml:"cmake_lib_override"`
+}
+
+type V1GitPackage struct {
+	V1Package `yaml:",inline"`
+	Tag       string `yaml:"tag"`    // git tag
+	Branch    string `yaml:"branch"` // git branch
+	Hash      string `yaml:"hash"`   // git commit hash
+}
+
+type V1FilesPackage struct {
+	V1Package `yaml:",inline"`
+	Files     map[string]string `yaml:"files"`
+}
+
+func (v1 *V1Packages) MigrateToV2(d *YamlDependencies) error {
+	if d.GitPackages == nil {
+		d.GitPackages = make(map[string]YamlGitPackage)
+	}
+	if d.FilesPackages == nil {
+		d.FilesPackages = make(map[string]YamlFilesPackage)
+	}
+
+	if v1.GitPackages != nil {
+		for name, gitPkg := range v1.GitPackages {
+			// and not found in v2
+			if _, ok := d.GitPackages[name]; !ok {
+				var version = ""
+				if gitPkg.Tag != "" {
+					version = gitPkg.Tag
+				} else if gitPkg.Branch != "" {
+					version = gitPkg.Branch
+				} else if gitPkg.Hash != "" {
+					version = gitPkg.Hash
+				} else {
+					return fmt.Errorf("package %s version(tag/branch/hash) is not specified", name)
+				}
+
+				d.GitPackages[name] = YamlGitPackage{
+					YamlPackage: YamlPackage{
+						Path:             gitPkg.Path,
+						Override:         gitPkg.Override,
+						Build:            gitPkg.Build,
+						CMakeLib:         gitPkg.CMakeLib,
+						CMakeLibOverride: gitPkg.CMakeLibOverride,
+					},
+					Version: version,
+					Target:  name,
+				}
+			}
+		}
+	}
+	if v1.FilesPackages != nil {
+		for name, filePkg := range v1.FilesPackages {
+			// and not found in v2
+			if _, ok := d.FilesPackages[name]; !ok {
+				d.FilesPackages[name] = YamlFilesPackage{
+					YamlPackage: YamlPackage{
+						Path:             filePkg.Path,
+						Override:         filePkg.Override,
+						Build:            filePkg.Build,
+						CMakeLib:         filePkg.CMakeLib,
+						CMakeLibOverride: filePkg.CMakeLibOverride,
+					},
+					Files: filePkg.Files,
+				}
+			}
+		}
+	}
+	return nil
 }

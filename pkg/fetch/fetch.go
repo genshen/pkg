@@ -94,12 +94,17 @@ func (f *fetch) Run() error {
 	}
 
 	// cope packages in user home directory to vendor/src directory
-	f.DepTree.TraversalDeep(func(tree *pkg.DependencyTree) error {
+	if err := f.DepTree.TraversalDeep(func(tree *pkg.DependencyTree) error {
+		if tree.Context.PackageName == pkg.RootPKG {
+			return nil
+		} // don't copy root package
 		if err := copy.Copy(tree.Context.HomeCacheSrcPath(), tree.Context.VendorSrcPath(f.PkgHome)); err != nil {
 			return err
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
 
 	// dump dependency tree to file system
 	if err := f.DepTree.Dump(pkg.GetPkgSumPath(f.PkgHome)); err == nil { //fixme
@@ -151,8 +156,13 @@ func (f *fetch) installSubDependency(pkgSrcPath string, pkgLock *map[string]stri
 
 			if f.PkgHome == pkgSrcPath {
 				depTree.Context.PackageName = pkg.RootPKG
-			} else {
-				depTree.Context.PackageName = pkgYaml.PkgName
+			} else { // check the package name in its pkg.yaml, then give a warning if it does not match
+				if depTree.Context.PackageName != pkgYaml.PkgName {
+					log.Warningf("package name does not match in pkg.yaml file(top level package name %s, package name in pkg.yaml).",
+						depTree.Context.PackageName,
+						pkgYaml.PkgName,
+					)
+				}
 			}
 
 			// add to build this package.
@@ -165,6 +175,12 @@ func (f *fetch) installSubDependency(pkgSrcPath string, pkgLock *map[string]stri
 			if depTree.Dependencies == nil {
 				depTree.Dependencies = make([]*pkg.DependencyTree, 0)
 			}
+
+			// migrate package based on pkg.yaml v1 to v2
+			if err := pkgYaml.Packages.MigrateToV2(&pkgYaml.Deps); err != nil {
+				return err
+			}
+
 			// download git based packages source of direct dependencies.
 			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.Deps.GitPackages); err != nil {
 				return err
@@ -193,6 +209,9 @@ func (f *fetch) dlFilesDepSrc(pkgLock *map[string]string, packages map[string]pk
 	var deps []*pkg.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.
+	if packages == nil {
+		return deps, nil
+	}
 	// download archive src package.
 	//for key, archPkg := range packages.ArchivePackages {
 	//	if err := archiveSrc(pkgHome, key, archPkg.Path); err != nil {
@@ -259,6 +278,9 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string
 	var deps []*pkg.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.
+	if packages == nil {
+		return deps, nil
+	}
 	// download git src, and add it to build tree.
 	for key, gitPkg := range packages {
 		context := pkg.PackageMeta{
