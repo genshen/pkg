@@ -101,10 +101,10 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 }
 
 // params:
+// repositoryPrefix: the directory to store the git repo.
+// packagePath: package path
 // gitPath:  package remote path, usually its a url.
-// hash: git commit hash.
-// branch: git branch.
-// tag:  git tag.
+// version: git commit hash or git tag or git branch.
 func gitSrc(auths map[string]conf.Auth, repositoryPrefix string, packagePath, gitPath, version string) error {
 	if err := os.MkdirAll(repositoryPrefix, 0744); err != nil {
 		return err
@@ -141,9 +141,9 @@ func gitSrc(auths map[string]conf.Auth, repositoryPrefix string, packagePath, gi
 
 	// clone repository.
 	if _, err := git.PlainClone(repositoryPrefix, false, &git.CloneOptions{
-		URL:               repoUrl,
-		Progress:          os.Stdout,
-		ReferenceName:     referenceName, // specific branch or tag.
+		URL:           repoUrl,
+		Progress:      os.Stdout,
+		ReferenceName: referenceName, // specific branch or tag.
 		// RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}); err != nil {
 		return err

@@ -17,7 +17,7 @@ type YamlDependencies struct {
 }
 
 type YamlPackage struct {
-	Path             string   `yaml:"path"` // todo this is not used
+	Path             string   `yaml:"path"`     // todo this is not used
 	Override         bool     `yaml:"override"` // override package self build.
 	Build            []string `yaml:"build"`
 	CMakeLib         string   `yaml:"cmake_lib"`
@@ -26,7 +26,8 @@ type YamlPackage struct {
 
 type YamlGitPackage struct {
 	YamlPackage `yaml:",inline"`
-	// Version     string `yaml:"version"`
+	Version     string `yaml:"version"`
+	Target      string `yaml:"target"`
 }
 
 type YamlFilesPackage struct {

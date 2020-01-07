@@ -14,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
 var fetchCommand = &cmds.Command{
@@ -163,12 +162,15 @@ func (f *fetch) installSubDependency(pkgSrcPath string, pkgLock *map[string]stri
 			}
 			depTree.Context.SelfCMakeLib = pkgYaml.CMakeLib // add cmake include script for this lib
 			depTree.IsPkgPackage = true
+			if depTree.Dependencies == nil {
+				depTree.Dependencies = make([]*pkg.DependencyTree, 0)
+			}
 			// download git based packages source of direct dependencies.
-			if deps, err := f.dlPackagesDepSrc(f.PkgHome, pkgLock, pkgYaml.Deps.GitPackages); err != nil {
+			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.Deps.GitPackages); err != nil {
 				return err
 			} else {
 				// add and install sub dependencies for this package.
-				depTree.Dependencies = deps
+				depTree.Dependencies = append(depTree.Dependencies, deps...)
 				for _, dep := range deps {
 					if err := f.installSubDependency(dep.Context.HomeCacheSrcPath(), pkgLock, dep); err != nil {
 						return err
@@ -176,10 +178,10 @@ func (f *fetch) installSubDependency(pkgSrcPath string, pkgLock *map[string]stri
 				}
 			}
 			// download files packages
-			if deps, err := f.dlFilesDepSrc(f.PkgHome, pkgLock, pkgYaml.Deps.FilesPackages); err != nil {
+			if deps, err := f.dlFilesDepSrc(pkgLock, pkgYaml.Deps.FilesPackages); err != nil {
 				return err
 			} else {
-				depTree.Dependencies = deps
+				depTree.Dependencies = append(depTree.Dependencies, deps...)
 			}
 		}
 		return nil
@@ -187,7 +189,7 @@ func (f *fetch) installSubDependency(pkgSrcPath string, pkgLock *map[string]stri
 }
 
 // download file based packages
-func (f *fetch) dlFilesDepSrc(pkgHome string, pkgLock *map[string]string, packages map[string]pkg.YamlFilesPackage) ([]*pkg.DependencyTree, error) {
+func (f *fetch) dlFilesDepSrc(pkgLock *map[string]string, packages map[string]pkg.YamlFilesPackage) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.
@@ -208,6 +210,15 @@ func (f *fetch) dlFilesDepSrc(pkgHome string, pkgLock *map[string]string, packag
 		srcDes, err := pkg.GetCachedPackageSrcPath(key, version)
 		if err != nil {
 			return nil, err
+		}
+		if ver, ok := (*pkgLock)[key]; ok {
+			log.WithFields(log.Fields{
+				"pkg":     key,
+				"version": ver,
+			}).Trace("package matches another version.")
+		} else {
+			// log version
+			(*pkgLock)[key] = version
 		}
 		// check target directory to save src.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
@@ -230,10 +241,10 @@ func (f *fetch) dlFilesDepSrc(pkgHome string, pkgLock *map[string]string, packag
 			DlStatus: status,
 			Context: pkg.PackageMeta{
 				PackageName: key,
-				TargetName:   key,
-				Version:      version,
-				Builder:      filePkg.Build[:],
-				CMakeLib:     filePkg.CMakeLib,
+				TargetName:  key,
+				Version:     version,
+				Builder:     filePkg.Build[:],
+				CMakeLib:    filePkg.CMakeLib,
 			},
 		}
 		deps = append(deps, &dep)
@@ -244,47 +255,51 @@ func (f *fetch) dlFilesDepSrc(pkgHome string, pkgLock *map[string]string, packag
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: project root direction.
-func (f *fetch) dlPackagesDepSrc(pkgHome string, pkgLock *map[string]string, packages map[string]pkg.YamlGitPackage) ([]*pkg.DependencyTree, error) {
+func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string]pkg.YamlGitPackage) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.
 	// download git src, and add it to build tree.
 	for key, gitPkg := range packages {
-		keySplit := strings.SplitN(key, "@", 3)
-		if len(keySplit) != 3 {
-			return nil, fmt.Errorf("bad package key: %s", key)
+		context := pkg.PackageMeta{
+			Version:    gitPkg.Version,
+			TargetName: gitPkg.Target,
+			CMakeLib:   gitPkg.CMakeLib,
+			Builder:    gitPkg.Build[:],
 		}
-		packagePath := keySplit[0]
-		targetName := keySplit[1]
-		version := keySplit[2]
+		// parse package path(name), target and version from key and gitPkg
+		if err := context.SetPackageName(key); err != nil {
+			return nil, err
+		}
+
 		// set save directory path
 		status := pkg.DlStatusEmpty
-		srcDes, err := pkg.GetCachedPackageSrcPath(packagePath, version)
+		srcDes, err := pkg.GetCachedPackageSrcPath(context.PackageName, context.Version)
 		if err != nil {
 			return nil, err
 		}
 		// version deciding
-		if ver, ok := (*pkgLock)[packagePath]; ok {
-			newVerDes, err := pkg.GetCachedPackageSrcPath(packagePath, ver)
+		if ver, ok := (*pkgLock)[context.PackageName]; ok {
+			newVerDes, err := pkg.GetCachedPackageSrcPath(context.PackageName, ver)
 			if err != nil {
 				return nil, err
 			}
 			srcDes = newVerDes // use the matched version package
-			version = ver
+			context.Version = ver
 			log.WithFields(log.Fields{
 				"pkg":     key,
 				"version": ver,
 			}).Trace("package matches another version.")
 		} else {
 			// log version
-			(*pkgLock)[packagePath] = version
+			(*pkgLock)[context.PackageName] = context.Version
 		}
 		// check directory, if not exists, then create it.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
 			if gitPkg.Path == "" {
-				gitPkg.Path = fmt.Sprintf("https://%s.git", packagePath)
+				gitPkg.Path = fmt.Sprintf("https://%s.git", context.PackageName)
 			}
-			if err := gitSrc(f.Auth, srcDes, packagePath, gitPkg.Path, version); err != nil {
+			if err := gitSrc(f.Auth, srcDes, srcDes, gitPkg.Path, context.Version); err != nil {
 				_ = os.RemoveAll(srcDes)
 				return nil, err
 			}
@@ -302,13 +317,7 @@ func (f *fetch) dlPackagesDepSrc(pkgHome string, pkgLock *map[string]string, pac
 		// add to dependency tree.
 		dep := pkg.DependencyTree{
 			DlStatus: status,
-			Context: pkg.PackageMeta{
-				PackageName: packagePath,
-				TargetName:   targetName,
-				Version:      version,
-				CMakeLib:     gitPkg.CMakeLib,
-				Builder:      gitPkg.Build[:],
-			},
+			Context:  context,
 		}
 		deps = append(deps, &dep)
 	}

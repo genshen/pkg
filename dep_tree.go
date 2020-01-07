@@ -5,10 +5,12 @@
 package pkg
 
 import (
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 )
 
 const (
@@ -36,6 +38,36 @@ type PackageMeta struct {
 	SelfCMakeLib string   `yaml:"self_cmake_lib"` // inner cmake script to add this lib.
 }
 
+func (ctx *PackageMeta) SetPackageName(key string) error {
+	keySplit := strings.SplitN(key, "@", 3)
+	var version = ""
+	var target = ""
+	if len(keySplit) == 1 {
+		ctx.PackageName = keySplit[0]
+	} else if len(keySplit) == 2 {
+		ctx.PackageName = keySplit[0]
+		version = keySplit[1]
+	} else if len(keySplit) == 3 {
+		ctx.PackageName = keySplit[0]
+		version = keySplit[1]
+		target = keySplit[2]
+	} else {
+		return fmt.Errorf("bad package key: %s", key)
+	}
+	// set version and target(optional)
+	if ctx.Version == "" {
+		if version != "" {
+			ctx.Version = version
+		} else {
+			return fmt.Errorf("bad package key: %s(version is not specified)", key)
+		}
+	}
+	if ctx.TargetName == "" {
+		ctx.TargetName = target
+	}
+	return nil
+}
+
 // return directory path of cached source in user home
 func (ctx *PackageMeta) HomeCacheSrcPath() string {
 	if path, err := GetCachedPackageSrcPath(ctx.PackageName, ctx.Version); err != nil {
@@ -59,14 +91,7 @@ func (depTree *DependencyTree) Dump(filename string) error {
 		if _, ok := metas[node.Context.PackageName]; ok {
 			return nil // the package have already been added to map.
 		}
-		metas[node.Context.PackageName] = PackageMeta{
-			PackageName: node.Context.PackageName,
-			Version:      node.Context.Version,
-			Builder:      node.Context.Builder,
-			SelfBuild:    node.Context.SelfBuild,
-			CMakeLib:     node.Context.CMakeLib,
-			SelfCMakeLib: node.Context.SelfCMakeLib,
-		}
+		metas[node.Context.PackageName] = node.Context
 		return nil
 	})
 	if err != nil {

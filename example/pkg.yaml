@@ -1,7 +1,7 @@
 # an example program, version: 1.0.0
 # author: genshen <genshenchu@gmail.com>
 
-version: 1
+version: 2
 
 args:
 
@@ -9,8 +9,8 @@ pkg: "github.com/genshen/pkg"
 
 dependencies:
   packages:
-    github.com/google/googletest@GTest@release-1.8.0:
-    github.com/fmtlib/fmt@fmt@4.1.0:
+    github.com/google/googletest: {version: release-1.8.0, target: GTest}
+    github.com/fmtlib/fmt@4.1.0@fmt:
       build:
         - RUN {{.CACHE}} cmake {{.SRC_DIR}} -DCMAKE_INSTALL_PREFIX={{.PKG_DIR}}; make -j {{.CORES}}; make install
       cmake_lib: |
