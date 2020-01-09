@@ -117,8 +117,8 @@ func cmakeLib(dep *pkg.DependencyTree, pkgHome string, root bool, cmakeLibSet *m
 	if root {
 		return nil
 	}
-	pkg.AddVendorPathEnv("") // relative path.
-	src := dep.Context.VendorSrcPath(pkgHome) // vendor/src/@pkg@version
+	pkg.AddVendorPathEnv("")                     // relative path.
+	src := dep.Context.VendorSrcPath(pkgHome)    // vendor/src/@pkg@version
 	pkg.AddPathEnv(dep.Context.PackageName, src) // add vars for this package, using relative path.
 	// generating cmake script.
 	toFile := cmakeDepData{

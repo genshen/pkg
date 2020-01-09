@@ -44,7 +44,7 @@ func init() {
 }
 
 type fetch struct {
-	PkgHome string // the absolute path of root 'pkg.json' form command path.
+	PkgHome string // the absolute path of root 'pkg.yaml' form command path.
 	DepTree pkg.DependencyTree
 	Auth    map[string]conf.Auth
 }
@@ -94,12 +94,17 @@ func (f *fetch) Run() error {
 	}
 
 	// cope packages in user home directory to vendor/src directory
-	f.DepTree.TraversalDeep(func(tree *pkg.DependencyTree) error {
+	if err := f.DepTree.TraversalDeep(func(tree *pkg.DependencyTree) error {
+		if tree.Context.PackageName == pkg.RootPKG {
+			return nil
+		} // don't copy root package
 		if err := copy.Copy(tree.Context.HomeCacheSrcPath(), tree.Context.VendorSrcPath(f.PkgHome)); err != nil {
 			return err
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
 
 	// dump dependency tree to file system
 	if err := f.DepTree.Dump(pkg.GetPkgSumPath(f.PkgHome)); err == nil { //fixme
@@ -144,64 +149,95 @@ func (f *fetch) installSubDependency(pkgSrcPath string, pkgLock *map[string]stri
 		if bytes, err := ioutil.ReadAll(pkgYamlPath); err != nil { // read file contents
 			return err
 		} else {
-			pkgs := pkg.Pkg{}
-			if err := yaml.Unmarshal(bytes, &pkgs); err != nil { // unmarshal yaml to struct
+			pkgYaml := pkg.YamlPkg{}
+			if err := yaml.Unmarshal(bytes, &pkgYaml); err != nil { // unmarshal yaml to struct
 				return err
 			}
 
-			// if packages name is not specified, set it as root package.
-			if depTree.Context.PackageName == "" {
+			if f.PkgHome == pkgSrcPath {
 				depTree.Context.PackageName = pkg.RootPKG
+			} else { // check the package name in its pkg.yaml, then give a warning if it does not match
+				if depTree.Context.PackageName != pkgYaml.PkgName {
+					log.Warningf("package name does not match in pkg.yaml file(top level package name %s, package name in pkg.yaml).",
+						depTree.Context.PackageName,
+						pkgYaml.PkgName,
+					)
+				}
 			}
+
 			// add to build this package.
 			// only all its dependency packages are downloaded, can this package be built.
-			if build, ok := pkgs.Build[runtime.GOOS]; ok {
+			if build, ok := pkgYaml.Build[runtime.GOOS]; ok {
 				depTree.Context.SelfBuild = build[:]
 			}
-			depTree.Context.SelfCMakeLib = pkgs.CMakeLib // add cmake include script for this lib
+			depTree.Context.SelfCMakeLib = pkgYaml.CMakeLib // add cmake include script for this lib
 			depTree.IsPkgPackage = true
-			// download packages source of direct dependencies.
-			if deps, err := f.dlSrc(f.PkgHome, pkgLock, &pkgs.Packages); err != nil {
+			if depTree.Dependencies == nil {
+				depTree.Dependencies = make([]*pkg.DependencyTree, 0)
+			}
+
+			// migrate package based on pkg.yaml v1 to v2
+			if err := pkgYaml.Packages.MigrateToV2(&pkgYaml.Deps); err != nil {
+				return err
+			}
+
+			// download git based packages source of direct dependencies.
+			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.Deps.GitPackages); err != nil {
 				return err
 			} else {
 				// add and install sub dependencies for this package.
-				depTree.Dependencies = deps
+				depTree.Dependencies = append(depTree.Dependencies, deps...)
 				for _, dep := range deps {
 					if err := f.installSubDependency(dep.Context.HomeCacheSrcPath(), pkgLock, dep); err != nil {
 						return err
 					}
 				}
-				return nil
+			}
+			// download files packages
+			if deps, err := f.dlFilesDepSrc(pkgLock, pkgYaml.Deps.FilesPackages); err != nil {
+				return err
+			} else {
+				depTree.Dependencies = append(depTree.Dependencies, deps...)
 			}
 		}
+		return nil
 	}
 }
 
-//
-// download a package source to destination refer to installPath, including source code and installed files.
-// usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
-// pkgHome: project root direction.
-func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.Packages) ([]*pkg.DependencyTree, error) {
+// download file based packages
+func (f *fetch) dlFilesDepSrc(pkgLock *map[string]string, packages map[string]pkg.YamlFilesPackage) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.
-	// download archive src package.
-	for key, archPkg := range packages.ArchivePackages {
-		if err := archiveSrc(pkgHome, key, archPkg.Path); err != nil {
-			// todo rollback, clean src.
-			return nil, err
-		} else {
-			// if source code downloading succeed, then compile and install it;
-			// besides, you can also use source code in your project (e.g. use cmake package in cmake project).
-		}
+	if packages == nil {
+		return deps, nil
 	}
+	// download archive src package.
+	//for key, archPkg := range packages.ArchivePackages {
+	//	if err := archiveSrc(pkgHome, key, archPkg.Path); err != nil {
+	//		// todo rollback, clean src.
+	//		return nil, err
+	//	} else {
+	//		// if source code downloading succeed, then compile and install it;
+	//		// besides, you can also use source code in your project (e.g. use cmake package in cmake project).
+	//	}
+	//}
 	// download files src, and add it to build tree.
-	for key, filePkg := range packages.FilesPackages {
+	for key, filePkg := range packages {
 		status := pkg.DlStatusEmpty
 		version := "latest"
 		srcDes, err := pkg.GetCachedPackageSrcPath(key, version)
 		if err != nil {
 			return nil, err
+		}
+		if ver, ok := (*pkgLock)[key]; ok {
+			log.WithFields(log.Fields{
+				"pkg":     key,
+				"version": ver,
+			}).Trace("package matches another version.")
+		} else {
+			// log version
+			(*pkgLock)[key] = version
 		}
 		// check target directory to save src.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
@@ -224,51 +260,68 @@ func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.
 			DlStatus: status,
 			Context: pkg.PackageMeta{
 				PackageName: key,
+				TargetName:  key,
 				Version:     version,
-				Builder:     filePkg.Package.Build[:],
+				Builder:     filePkg.Build[:],
 				CMakeLib:    filePkg.CMakeLib,
 			},
 		}
 		deps = append(deps, &dep)
 	}
+	return deps, nil
+}
+
+// download a package source to destination refer to installPath, including source code and installed files.
+// usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
+// pkgHome: project root direction.
+func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string]pkg.YamlGitPackage) ([]*pkg.DependencyTree, error) {
+	var deps []*pkg.DependencyTree
+	// todo packages have dependencies.
+	// todo check install.
+	if packages == nil {
+		return deps, nil
+	}
 	// download git src, and add it to build tree.
-	for key, gitPkg := range packages.GitPackages {
-		// check version
-		version := ""
-		if gitPkg.Branch != "" {
-			version = gitPkg.Branch
-		} else if gitPkg.Tag != "" {
-			version = gitPkg.Tag
-		} else if gitPkg.Hash != "" {
-			version = gitPkg.Hash
-		} else {
-			return nil, errors.New("version not set")
+	for key, gitPkg := range packages {
+		context := pkg.PackageMeta{
+			Version:    gitPkg.Version,
+			TargetName: gitPkg.Target,
+			CMakeLib:   gitPkg.CMakeLib,
+			Builder:    gitPkg.Build[:],
 		}
+		// parse package path(name), target and version from key and gitPkg
+		if err := context.SetPackageName(key); err != nil {
+			return nil, err
+		}
+
 		// set save directory path
 		status := pkg.DlStatusEmpty
-		srcDes, err := pkg.GetCachedPackageSrcPath(key, version)
+		srcDes, err := pkg.GetCachedPackageSrcPath(context.PackageName, context.Version)
 		if err != nil {
 			return nil, err
 		}
 		// version deciding
-		if ver, ok := (*pkgLock)[key]; ok {
-			newVerDes, err := pkg.GetCachedPackageSrcPath(key, ver)
+		if ver, ok := (*pkgLock)[context.PackageName]; ok {
+			newVerDes, err := pkg.GetCachedPackageSrcPath(context.PackageName, ver)
 			if err != nil {
 				return nil, err
 			}
 			srcDes = newVerDes // use the matched version package
-			version = ver
+			context.Version = ver
 			log.WithFields(log.Fields{
 				"pkg":     key,
 				"version": ver,
 			}).Trace("package matches another version.")
 		} else {
 			// log version
-			(*pkgLock)[key] = version
+			(*pkgLock)[context.PackageName] = context.Version
 		}
 		// check directory, if not exists, then create it.
 		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
-			if err := gitSrc(f.Auth, srcDes, key, gitPkg.Path, gitPkg.Hash, gitPkg.Branch, gitPkg.Tag); err != nil {
+			if gitPkg.Path == "" {
+				gitPkg.Path = fmt.Sprintf("https://%s.git", context.PackageName)
+			}
+			if err := gitSrc(f.Auth, srcDes, srcDes, gitPkg.Path, context.Version); err != nil {
 				_ = os.RemoveAll(srcDes)
 				return nil, err
 			}
@@ -286,12 +339,7 @@ func (f *fetch) dlSrc(pkgHome string, pkgLock *map[string]string, packages *pkg.
 		// add to dependency tree.
 		dep := pkg.DependencyTree{
 			DlStatus: status,
-			Context: pkg.PackageMeta{
-				PackageName: key,
-				Version:     version,
-				CMakeLib:    gitPkg.CMakeLib,
-				Builder:     gitPkg.Package.Build[:],
-			},
+			Context:  context,
 		}
 		deps = append(deps, &dep)
 	}

@@ -31,46 +31,6 @@ const (
 
 const RootPKG = "root"
 
-type Pkg struct {
-	Version  int                 `yaml:"version"`
-	Args     map[string]string   `yaml:"args"`
-	Name     string              `yaml:"name"`
-	Packages Packages            `yaml:"packages"`
-	Build    map[string][]string `yaml:"build"`
-	CMakeLib string              `yaml:"cmake_lib"`
-}
-
-type Packages struct {
-	GitPackages     map[string]GitPackage     `yaml:"git"`
-	FilesPackages   map[string]FilesPackage   `yaml:"files"`
-	ArchivePackages map[string]ArchivePackage `yaml:"archive"`
-}
-
-type Package struct {
-	Path     string `yaml:"path"`
-	Override bool   `yaml:"override"` // override package self build.
-	//	Dependencies []string          `yaml:"dependencies"`
-	Build            []string `yaml:"build"`
-	CMakeLib         string   `yaml:"cmake_lib"`
-	CMakeLibOverride bool     `yaml:"cmake_lib_override"`
-}
-
-type GitPackage struct {
-	Package `yaml:",inline"`
-	Tag     string `yaml:"tag"`    // git tag
-	Branch  string `yaml:"branch"` // git branch
-	Hash    string `yaml:"hash"`   // git commit hash
-}
-
-type FilesPackage struct {
-	Package `yaml:",inline"`
-	Files   map[string]string `yaml:"files"`
-}
-
-type ArchivePackage struct {
-	Package `yaml:",inline"`
-}
-
 func GetVendorPath(base string) string {
 	return filepath.Join(base, VendorName)
 }

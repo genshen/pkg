@@ -101,11 +101,11 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 }
 
 // params:
+// repositoryPrefix: the directory to store the git repo.
+// packagePath: package path
 // gitPath:  package remote path, usually its a url.
-// hash: git commit hash.
-// branch: git branch.
-// tag:  git tag.
-func gitSrc(auths map[string]conf.Auth, repositoryPrefix string, packageName, gitPath, hash, branch, tag string) error {
+// version: git commit hash or git tag or git branch.
+func gitSrc(auths map[string]conf.Auth, repositoryPrefix string, packagePath, gitPath, version string) error {
 	if err := os.MkdirAll(repositoryPrefix, 0744); err != nil {
 		return err
 	}
@@ -122,63 +122,88 @@ func gitSrc(auths map[string]conf.Auth, repositoryPrefix string, packageName, gi
 	}
 
 	// init ReferenceName using branch and tag.
-	var referenceName plumbing.ReferenceName
-	if branch != "" { // checkout to a specify branch.
-		log.WithFields(log.Fields{
-			"pkg":        packageName,
-			"repository": gitPath,
-			"storage":    repositoryPrefix,
-			"branch":     branch,
-		}).Info("cloning repository from remote to local storage.")
-		referenceName = plumbing.ReferenceName("refs/heads/" + branch)
-	} else if tag != "" { // checkout to specify tag.
-		log.WithFields(log.Fields{
-			"pkg":        packageName,
-			"repository": gitPath,
-			"storage":    repositoryPrefix,
-			"tag":        tag,
-		}).Info("cloning repository from remote to local storage.")
-		referenceName = plumbing.ReferenceName("refs/tags/" + tag)
-	} else {
-		log.WithFields(log.Fields{
-			"pkg":        packageName,
-			"repository": gitPath,
-			"storage":    repositoryPrefix,
-		}).Info("cloning repository from remote to local storage.")
-	}
 
 	// clone repository.
 	if repos, err := git.PlainClone(repositoryPrefix, false, &git.CloneOptions{
-		URL:           repoUrl,
-		Progress:      os.Stdout,
-		ReferenceName: referenceName, // specific branch or tag.
-		//RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		URL:      repoUrl,
+		Progress: os.Stdout,
+		//ReferenceName: referenceName, // specific branch or tag.
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}); err != nil {
 		return err
-	} else {            // clone succeed.
-		if hash != "" { // if hash is not empty, then checkout to some commit.
-			worktree, err := repos.Worktree()
-			if err != nil {
-				return err
-			}
-			log.WithFields(log.Fields{
-				"pkg":  packageName,
-				"hash": hash,
-			}).Println("checkout repository to commit.")
-			// do checkout
-			err = worktree.Checkout(&git.CheckoutOptions{
-				Hash: plumbing.NewHash(hash),
-			})
-			if err != nil {
-				return err
+	} else { // clone succeed.
+		var reference plumbing.Hash
+		var found = false
+		// check tags
+		if tagRefs, err := repos.Tags(); err != nil {
+			return err
+		} else {
+			for {
+				if t, err := tagRefs.Next(); err != nil {
+					if err == io.EOF {
+						break
+					} else {
+						return err
+					}
+				} else {
+					if t.Name().String() == "refs/tags/"+version {
+						reference = t.Hash()
+						found = true
+						break
+					}
+				}
+				return nil
 			}
 		}
+		// check branch
+		if !found {
+			if branchRefs, err := repos.Branches(); err != nil {
+				return err
+			} else {
+				for {
+					if t, err := branchRefs.Next(); err != nil {
+						if err == io.EOF {
+							break
+						} else {
+							return err
+						}
+					} else {
+						if t.Name().String() == "refs/heads/"+version {
+							reference = t.Hash()
+							found = true
+							break
+						}
+					}
+					return nil
+				}
+			}
+		}
+		if !found {
+			// checkout to hash, if hash is not empty, then checkout to some commit.
+			reference = plumbing.NewHash(version)
+		}
 
-		// remove .git directory.
-		err = os.RemoveAll(filepath.Join(repositoryPrefix, ".git"))
+		worktree, err := repos.Worktree()
 		if err != nil {
 			return err
 		}
+		log.WithFields(log.Fields{
+			"pkg":     packagePath,
+			"version": version,
+		}).Println("checkout repository to reference.")
+		// do checkout
+		if err = worktree.Checkout(&git.CheckoutOptions{
+			Hash: reference,
+		}); err != nil {
+			return err
+		}
 	}
+
+	// remove .git directory.
+	err := os.RemoveAll(filepath.Join(repositoryPrefix, ".git"))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
