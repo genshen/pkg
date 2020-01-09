@@ -89,21 +89,7 @@ func (f *fetch) Run() error {
 	// fetch packages to user home directory.
 	log.Info("packages will be downloaded to directory ", pkgSrcDir)
 	pkgLock := make(map[string]string)
-	if err := f.fetchSubDependency(f.PkgHome, &pkgLock, &f.DepTree); err != nil {
-		return err
-	}
-
-	// cope packages in user home directory to vendor/src directory
-	log.Info("copy dependencies from cache to vendor.")
-	if err := f.DepTree.TraversalDeep(func(tree *pkg.DependencyTree) error {
-		if tree.Context.PackageName == pkg.RootPKG {
-			return nil
-		} // don't copy root package
-		if err := copy.Copy(tree.Context.HomeCacheSrcPath(), tree.Context.VendorSrcPath(f.PkgHome)); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
+	if err := f.fetchSubDependency(pkg.RootPKG, f.PkgHome, &pkgLock, &f.DepTree); err != nil {
 		return err
 	}
 
@@ -138,17 +124,20 @@ func (f *fetch) Run() error {
 }
 
 // install dependencies to a directory, installPath is the root path of sub-dependency(always be the project root).
+// pkgPath: the given package name/path (e.g github.com/google/googletest) from top level package.
+//pkgVendorSrcPath: path of source file directory in vendor.
 // todo circle detect
-func (f *fetch) fetchSubDependency(pkgSrcPath string, pkgLock *map[string]string, depTree *pkg.DependencyTree) error {
-	if pkgYamlPath, err := os.Open(filepath.Join(pkgSrcPath, pkg.PkgFileName)); err != nil {
+func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgLock *map[string]string, depTree *pkg.DependencyTree) error {
+	// check pkg.yaml file in vendor directory
+	if pkgYamlFile, err := os.Open(filepath.Join(pkgVendorSrcPath, pkg.PkgFileName)); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		} else {
 			return err
 		}
 	} else { // pkg.yaml exists.
-		defer pkgYamlPath.Close()
-		if bytes, err := ioutil.ReadAll(pkgYamlPath); err != nil { // read file contents
+		defer pkgYamlFile.Close()
+		if bytes, err := ioutil.ReadAll(pkgYamlFile); err != nil { // read file contents
 			return err
 		} else {
 			pkgYaml := pkg.YamlPkg{}
@@ -156,7 +145,7 @@ func (f *fetch) fetchSubDependency(pkgSrcPath string, pkgLock *map[string]string
 				return err
 			}
 
-			if f.PkgHome == pkgSrcPath {
+			if pkgPath == pkg.RootPKG {
 				depTree.Context.PackageName = pkg.RootPKG
 			} else { // check the package name in its pkg.yaml, then give a warning if it does not match
 				if depTree.Context.PackageName != pkgYaml.PkgName {
@@ -187,10 +176,14 @@ func (f *fetch) fetchSubDependency(pkgSrcPath string, pkgLock *map[string]string
 			if deps, err := f.dlPackagesDepSrc(pkgLock, gitPkgsToInterface(pkgYaml.Deps.GitPackages)); err != nil {
 				return err
 			} else {
+				// copy downloaded packages to vendor directory
+				if err := f.copyPkgToVendor(deps); err != nil {
+					return err
+				}
 				// add and install sub dependencies for this package.
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 				for _, dep := range deps {
-					if err := f.fetchSubDependency(dep.Context.HomeCacheSrcPath(), pkgLock, dep); err != nil {
+					if err := f.fetchSubDependency(dep.Context.PackageName, dep.Context.VendorSrcPath(f.PkgHome), pkgLock, dep); err != nil {
 						return err
 					}
 				}
@@ -199,11 +192,15 @@ func (f *fetch) fetchSubDependency(pkgSrcPath string, pkgLock *map[string]string
 			if deps, err := f.dlPackagesDepSrc(pkgLock, filesPkgsToInterface(pkgYaml.Deps.FilesPackages)); err != nil {
 				return err
 			} else {
+				// copy downloaded packages to vendor directory
+				if err := f.copyPkgToVendor(deps); err != nil {
+					return err
+				}
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 			}
 		}
-		return nil
 	}
+	return nil
 }
 
 // download a package source to destination refer to installPath, including source code and installed files.
@@ -289,4 +286,30 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string
 		deps = append(deps, &dep)
 	}
 	return deps, nil
+}
+
+// cope packages specified by array deps from user home directory to vendor/src directory
+func (f *fetch) copyPkgToVendor(deps []*pkg.DependencyTree) error {
+	//log.Info("copy dependencies from cache to vendor.")
+	for _, dep := range deps {
+		pkgCachePath := dep.Context.HomeCacheSrcPath()
+		pkgVendorPath := dep.Context.VendorSrcPath(f.PkgHome)
+
+		// copy only when global cache exist
+		if _, err := os.Stat(pkgCachePath); os.IsNotExist(err) { // cache not exist
+			if _, err := os.Stat(pkgVendorPath); err != nil {
+				if os.IsNotExist(err) { // vendor not exist
+					return fmt.Errorf("cache and vendor path of package `%s` does not exists", dep.Context.PackageName)
+				}
+				return err
+			} // else: vendor exist
+		} else if err != nil {
+			return err
+		} else {
+			if err := copy.Copy(pkgCachePath, pkgVendorPath); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
