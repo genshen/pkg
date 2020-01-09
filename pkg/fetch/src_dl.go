@@ -16,7 +16,7 @@ import (
 
 // download source code packages.
 // files: just download files specified by map files.
-func filesSrc(srcDes string, packageName string, baseUrl string, files map[string]string) error {
+func filesSrc(srcDes, packageName, baseUrl string, files map[string]string) error {
 	// check packageName dir, if not exists, then create it.
 	if err := os.MkdirAll(srcDes, 0744); err != nil {
 		return err
@@ -102,17 +102,18 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 
 // params:
 // repositoryPrefix: the directory to store the git repo.
-// packagePath: package path
-// gitPath:  package remote path, usually its a url.
+// packageCacheDir: cache location to store this package source.
+// packagePath: package path.
+// packageUrl:  package remote path, usually its a url.
 // version: git commit hash or git tag or git branch.
-func gitSrc(auths map[string]conf.Auth, repositoryPrefix string, packagePath, gitPath, version string) error {
-	if err := os.MkdirAll(repositoryPrefix, 0744); err != nil {
+func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl, version string) error {
+	if err := os.MkdirAll(packageCacheDir, 0744); err != nil {
 		return err
 	}
 
 	// generate auth repository url.
-	repoUrl := gitPath
-	if gitUrl, err := url.Parse(gitPath); err != nil {
+	repoUrl := packageUrl
+	if gitUrl, err := url.Parse(packageUrl); err != nil {
 		return err
 	} else {
 		if hostAuth, ok := auths[gitUrl.Host]; ok {
@@ -124,7 +125,7 @@ func gitSrc(auths map[string]conf.Auth, repositoryPrefix string, packagePath, gi
 	// init ReferenceName using branch and tag.
 
 	// clone repository.
-	if repos, err := git.PlainClone(repositoryPrefix, false, &git.CloneOptions{
+	if repos, err := git.PlainClone(packageCacheDir, false, &git.CloneOptions{
 		URL:      repoUrl,
 		Progress: os.Stdout,
 		//ReferenceName: referenceName, // specific branch or tag.
@@ -200,7 +201,7 @@ func gitSrc(auths map[string]conf.Auth, repositoryPrefix string, packagePath, gi
 	}
 
 	// remove .git directory.
-	err := os.RemoveAll(filepath.Join(repositoryPrefix, ".git"))
+	err := os.RemoveAll(filepath.Join(packageCacheDir, ".git"))
 	if err != nil {
 		return err
 	}
