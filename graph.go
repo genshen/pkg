@@ -16,7 +16,7 @@ func (depTree *DependencyTree) MarshalGraph(writer io.Writer) error {
 		if _, ok := (pkgTraversalFlag)[tree.Context.PackageName]; ok {
 			return nil // skip
 		}
-		p, err := tree.ListDeps()
+		p, err := tree.ListDepsName()
 		if err != nil {
 			return err
 		}

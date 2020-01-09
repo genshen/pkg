@@ -113,8 +113,8 @@ func (depTree *DependencyTree) Dump(filename string) error {
 	return nil
 }
 
-// list all dependencies packages of a package by TraversalDeep.
-func (depTree *DependencyTree) ListDeps() ([]string, error) {
+// list all dependencies packages name of a package by TraversalDeep.
+func (depTree *DependencyTree) ListDepsName() ([]string, error) {
 	// dump all its dependencies
 	pkgTraversalFlag := make(map[string]bool)
 	lists := make([]string, 0)
@@ -125,6 +125,29 @@ func (depTree *DependencyTree) ListDeps() ([]string, error) {
 			return nil // skip
 		}
 		lists = append(lists, tree.Context.PackageName)
+		pkgTraversalFlag[tree.Context.PackageName] = true
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return lists, nil
+}
+
+// list all dependencies packages of a package by TraversalDeep.
+func (depTree *DependencyTree) ListDeps(skipRoot bool) ([] *DependencyTree, error) {
+	// dump all its dependencies
+	pkgTraversalFlag := make(map[string]bool)
+	lists := make([]*DependencyTree, 0)
+
+	if skipRoot {
+		pkgTraversalFlag[depTree.Context.PackageName] = true // skip the root package.
+	}
+	err := depTree.TraversalDeep(func(tree *DependencyTree) error {
+		if _, ok := (pkgTraversalFlag)[tree.Context.PackageName]; ok {
+			return nil // skip
+		}
+		lists = append(lists, tree)
 		pkgTraversalFlag[tree.Context.PackageName] = true
 		return nil
 	})

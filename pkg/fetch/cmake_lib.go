@@ -55,93 +55,98 @@ const CmakeToFile = `
 
 // pkgHome is always pkg root.
 // write cmake script for all direct and indirect dependencies packages.
-func createPkgDepCmake(pkgHome, srcHome string, isProjectPkg bool, depTree *pkg.DependencyTree) error {
-	// create dep cmake file only for pkg based project.
-	if !depTree.IsPkgPackage {
-		return nil
-	}
-
-	// create cmake dep file for this package.
-	if cmakeDepWriter, err := os.Create(filepath.Join(srcHome, pkg.CMakeDep)); err != nil {
+func createPkgDepCmake(pkgHome string, rootDep *pkg.DependencyTree) error {
+	depsList, err := rootDep.ListDeps(false)
+	if err != nil {
 		return err
-	} else {
-		pkgCMakeLibSet := make(map[string]bool)
-		defer cmakeDepWriter.Close()
-		bufWriter := bufio.NewWriter(cmakeDepWriter)
-
-		// for project package, set @PkgHome/vendor as vendor path.
-		// for non-project package, vendor path will not be set, which can be set in command line while building.
-
-		// render header template.
-		if err := renderCMakeHeader(bufWriter, isProjectPkg, pkg.GetVendorPath(pkgHome)); err != nil {
-			return err
-		}
-
-		// compute and render body template.
-		// (write cmake include and find_package script of all dependency packages)
-		if err := cmakeLib(depTree, pkgHome, true, &pkgCMakeLibSet, bufWriter); err != nil {
-			return err
-		}
-		if err := bufWriter.Flush(); err != nil {
-			return err
-		}
-		log.Println("generated cmake for package", depTree.Context.PackageName)
 	}
-	// create cmake dep file for all its sub/child package.
-	for _, v := range depTree.Dependencies {
-		// for all non-root package, the srcHome is pkgHome/vendor/src/@packageName
-		err := createPkgDepCmake(pkgHome, v.Context.VendorSrcPath(pkgHome), false, v)
-		if err != nil {
-			return err // break loop.
+
+	for _, depTree := range depsList {
+		var packageSrcPath = depTree.Context.VendorSrcPath(pkgHome)
+		if depTree.Context.PackageName == pkg.RootPKG {
+			packageSrcPath = pkgHome
+		}
+		var createDepCmake = func(isProjectPkg bool) error {
+			// create cmake dep file for this package.
+			if cmakeDepWriter, err := os.Create(filepath.Join(packageSrcPath, pkg.CMakeDep)); err != nil {
+				return err
+			} else {
+				defer cmakeDepWriter.Close()
+				bufWriter := bufio.NewWriter(cmakeDepWriter)
+
+				// render header template.
+				// In header rendering, for project package, set @PkgHome/vendor as vendor path.
+				// for non-project package, vendor path will not be set, which can be set in command line while building.
+				if err := renderCMakeHeader(bufWriter, isProjectPkg, pkg.GetVendorPath(pkgHome)); err != nil {
+					return err
+				}
+
+				// compute and render body template.
+				// (write cmake include and find_package script of all dependency packages)
+				if err := cmakeLib(depTree, pkgHome, bufWriter); err != nil {
+					return err
+				}
+				if err := bufWriter.Flush(); err != nil {
+					return err
+				}
+				log.Println("generated cmake for package", depTree.Context.PackageName)
+			}
+			return nil
+		}
+
+		// create dep cmake file only for pkg based package.
+		if depTree.IsPkgPackage {
+			var isProjectPkg = false
+			if depTree == rootDep {
+				isProjectPkg = true
+			}
+			// create cmake dep file for this package
+			if err := createDepCmake(isProjectPkg); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-// todo combine this function anf function buildPkg.
-// root: indicating the root package
+// generate/render cmake script of a package specified by depTree.
+//the result comes from its dependencies,
 // pkgHome: absolute path for pkg home.
-func cmakeLib(dep *pkg.DependencyTree, pkgHome string, root bool, cmakeLibSet *map[string]bool, writer io.Writer) error {
-	// if this package has been built, skip it and its dependency.
-	if _, ok := (*cmakeLibSet)[dep.Context.PackageName]; ok {
-		return nil
-	}
-
-	for _, v := range dep.Dependencies {
-		if err := cmakeLib(v, pkgHome, false, cmakeLibSet, writer); err != nil {
-			return err // break loop.
-		}
-	}
-
-	// do not generate cmake include and find_package script for root lib.
-	if root {
-		return nil
-	}
-	pkg.AddVendorPathEnv("")                     // relative path.
-	src := dep.Context.VendorSrcPath(pkgHome)    // vendor/src/@pkg@version
-	pkg.AddPathEnv(dep.Context.PackageName, src) // add vars for this package, using relative path.
-	// generating cmake script.
-	toFile := cmakeDepData{
-		LibName:    dep.Context.PackageName,
-		InnerCMake: dep.Context.SelfCMakeLib,
-		OuterCMake: dep.Context.CMakeLib,
-		PkgHome:    pkgHome,
-		SrcDir:     src,
-		PkgDir:     pkg.GetPackagePkgPath("", dep.Context.PackageName),
-	}
-	// copy slice, don't modify the original data.
-	toFile.OuterBuildCommand = make([]string, len(dep.Context.Builder))
-	toFile.InnerBuildCommand = make([]string, len(dep.Context.SelfBuild))
-	copy(toFile.OuterBuildCommand, dep.Context.Builder)
-	copy(toFile.InnerBuildCommand, dep.Context.SelfBuild)
-
-	if dep.Context.CMakeLib != "" { // ignore self cmake if the cmake in override by outer cmake lib.
-		toFile.InnerCMake = ""
-	}
-	if err := renderCMakeBody(toFile, writer); err != nil {
+func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, writer io.Writer) error {
+	// skip master package by setting parameter skipRoota as true,
+	// do not generate cmake include and find_package script for the master package itself lib.
+	depsList, err := depTree.ListDeps(true) // list all dependencies
+	if err != nil {
 		return err
 	}
-	(*cmakeLibSet)[dep.Context.PackageName] = true
+
+	for _, dep := range depsList {
+		pkg.AddVendorPathEnv("")                     // relative path.
+		src := dep.Context.VendorSrcPath(pkgHome)    // vendor/src/@pkg@version
+		pkg.AddPathEnv(dep.Context.PackageName, src) // add vars for this package, using relative path.
+		// generating cmake script.
+		toFile := cmakeDepData{
+			LibName:    dep.Context.PackageName,
+			InnerCMake: dep.Context.SelfCMakeLib,
+			OuterCMake: dep.Context.CMakeLib,
+			PkgHome:    pkgHome,
+			SrcDir:     src,
+			PkgDir:     pkg.GetPackagePkgPath("", dep.Context.PackageName),
+		}
+		// copy slice, don't modify the original data.
+		toFile.OuterBuildCommand = make([]string, len(dep.Context.Builder))
+		toFile.InnerBuildCommand = make([]string, len(dep.Context.SelfBuild))
+		copy(toFile.OuterBuildCommand, dep.Context.Builder)
+		copy(toFile.InnerBuildCommand, dep.Context.SelfBuild)
+
+		// ignore self cmake if the cmake in override by outer cmake lib.
+		if dep.Context.CMakeLib != "" {
+			toFile.InnerCMake = ""
+		}
+		if err := renderCMakeBody(toFile, writer); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -107,19 +107,12 @@ func (f *fetch) Run() error {
 	}
 
 	// dump dependency tree to file system
-	if err := f.DepTree.Dump(pkg.GetPkgSumPath(f.PkgHome)); err == nil { //fixme
+	if err := f.DepTree.Dump(pkg.GetPkgSumPath(f.PkgHome)); err != nil { //fixme
+		return err
+	} else {
 		log.WithFields(log.Fields{
 			"file": pkg.PkgSumFileName,
 		}).Info("saved dependencies tree to file.")
-	} else {
-		return err
-	}
-
-	// generating cmake script to include dependency libs.
-	// the generated cmake file is stored at where pkg command runs.
-	// for project package, its srcHome equals to PkgHome.
-	if err := createPkgDepCmake(f.PkgHome, f.PkgHome, true, &f.DepTree); err != nil {
-		return err
 	}
 
 	// dump all packages's dependencies.
@@ -131,6 +124,14 @@ func (f *fetch) Run() error {
 			return err
 		}
 	}
+
+	// generating cmake script to include dependency libs.
+	// the generated cmake file is stored at where pkg command runs.
+	// for project package, its srcHome equals to PkgHome.
+	if err := createPkgDepCmake(f.PkgHome, &f.DepTree); err != nil {
+		return err
+	}
+
 	log.Info("fetch succeeded.")
 	return nil
 }
