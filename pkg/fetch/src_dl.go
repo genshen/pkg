@@ -123,7 +123,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 	}
 
 	// init ReferenceName using branch and tag.
-
+	var checkoutOpt git.CheckoutOptions
 	// clone repository.
 	if repos, err := git.PlainClone(packageCacheDir, false, &git.CloneOptions{
 		URL:      repoUrl,
@@ -133,7 +133,6 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 	}); err != nil {
 		return err
 	} else { // clone succeed.
-		var reference plumbing.Hash
 		var found = false
 		// check tags
 		if tagRefs, err := repos.Tags(); err != nil {
@@ -148,7 +147,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 					}
 				} else {
 					if t.Name().String() == "refs/tags/"+version {
-						reference = t.Hash()
+						checkoutOpt.Branch = t.Name()
 						found = true
 						break
 					}
@@ -170,7 +169,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 						}
 					} else {
 						if t.Name().String() == "refs/heads/"+version {
-							reference = t.Hash()
+							checkoutOpt.Branch = t.Name()
 							found = true
 							break
 						}
@@ -181,7 +180,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 		}
 		if !found {
 			// checkout to hash, if hash is not empty, then checkout to some commit.
-			reference = plumbing.NewHash(version)
+			checkoutOpt.Hash = plumbing.NewHash(version)
 		}
 
 		worktree, err := repos.Worktree()
@@ -193,9 +192,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 			"version": version,
 		}).Println("checkout repository to reference.")
 		// do checkout
-		if err = worktree.Checkout(&git.CheckoutOptions{
-			Hash: reference,
-		}); err != nil {
+		if err = worktree.Checkout(&checkoutOpt); err != nil {
 			return err
 		}
 	}
