@@ -9,7 +9,7 @@ import (
 )
 
 // build pkg from dependency tree.
-// pkgHome: the location of file pkg.json
+// pkgHome: the location of file pkg.yaml
 // skipDep: skip its dependency packages.
 func buildPkg(lists []string, metas map[string]pkg.PackageMeta, pkgHome string, verbose bool) error {
 	for _, item := range lists {

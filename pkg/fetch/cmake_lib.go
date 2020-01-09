@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"github.com/genshen/pkg"
 	"github.com/genshen/pkg/pkg/version"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -89,7 +89,7 @@ func createPkgDepCmake(pkgHome string, rootDep *pkg.DependencyTree) error {
 				if err := bufWriter.Flush(); err != nil {
 					return err
 				}
-				log.Println("generated cmake for package", depTree.Context.PackageName)
+				log.Trace("generated cmake for package", depTree.Context.PackageName)
 			}
 			return nil
 		}

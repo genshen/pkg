@@ -130,7 +130,6 @@ func runInsCopy(target, des string) error {
 // packageSrcPath: path of the source code in user home
 func WriteIns(w *bufio.Writer, pkgHome, pkgName, packageSrcPath, ins string) error {
 	ins = strings.Trim(ins, " ")
-	// todo rewrite
 	triple, err := pkg.ParseIns(ins)
 	if err != nil {
 		return err

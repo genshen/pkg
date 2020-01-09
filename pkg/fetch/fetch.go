@@ -94,6 +94,7 @@ func (f *fetch) Run() error {
 	}
 
 	// cope packages in user home directory to vendor/src directory
+	log.Info("copy dependencies from cache to vendor.")
 	if err := f.DepTree.TraversalDeep(func(tree *pkg.DependencyTree) error {
 		if tree.Context.PackageName == pkg.RootPKG {
 			return nil
@@ -159,7 +160,7 @@ func (f *fetch) fetchSubDependency(pkgSrcPath string, pkgLock *map[string]string
 				depTree.Context.PackageName = pkg.RootPKG
 			} else { // check the package name in its pkg.yaml, then give a warning if it does not match
 				if depTree.Context.PackageName != pkgYaml.PkgName {
-					log.Warningf("package name does not match in pkg.yaml file(top level package name %s, package name in pkg.yaml).",
+					log.Warningf("package name does not match in pkg.yaml file(top level package name: %s, package name in pkg.yaml: %s).",
 						depTree.Context.PackageName,
 						pkgYaml.PkgName,
 					)
@@ -228,10 +229,10 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string
 		return deps, nil
 	}
 	// download git src, and add it to build tree.
-	for key, gitPkg := range packages {
+	for key, p := range packages {
 		var context pkg.PackageMeta
 		// before fetching package, set version and package name/path
-		if err := gitPkg.setPackageMeta(key, &context); err != nil {
+		if err := p.setPackageMeta(key, &context); err != nil {
 			return nil, err
 		}
 		// set save directory path
@@ -257,8 +258,13 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string
 		// check target directory to save src files.
 		_, errHomeSrc := os.Stat(srcDes)
 		_, errVendorSrc := os.Stat(vendorSrcDes)
+		// check home cache dir and vendor dir
 		if os.IsNotExist(errHomeSrc) && os.IsNotExist(errVendorSrc) {
-			if err := gitPkg.fetch(f.Auth, srcDes, context); err != nil {
+			log.WithFields(log.Fields{
+				"pkg":     context.PackageName,
+				"storage": srcDes,
+			}).Info("downloading dependencies.")
+			if err := p.fetch(f.Auth, srcDes, context); err != nil {
 				return nil, err
 			}
 			status = pkg.DlStatusOk
