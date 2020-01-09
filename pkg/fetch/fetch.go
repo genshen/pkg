@@ -296,17 +296,10 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string
 
 		// set save directory path
 		status := pkg.DlStatusEmpty
-		srcDes, err := pkg.GetCachedPackageSrcPath(context.PackageName, context.Version)
-		if err != nil {
-			return nil, err
-		}
-		// version deciding
+
+		// version conflict and deciding
 		if ver, ok := (*pkgLock)[context.PackageName]; ok {
-			newVerDes, err := pkg.GetCachedPackageSrcPath(context.PackageName, ver)
-			if err != nil {
-				return nil, err
-			}
-			srcDes = newVerDes // use the matched version package
+			// use the matched version package
 			context.Version = ver
 			log.WithFields(log.Fields{
 				"pkg":     key,
@@ -316,8 +309,15 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string
 			// log version
 			(*pkgLock)[context.PackageName] = context.Version
 		}
+
+		// src path in (global) user home
+		srcDes := context.HomeCacheSrcPath()
+		vendorSrcDes := context.VendorSrcPath(f.PkgHome)
+
 		// check directory, if not exists, then create it.
-		if _, err := os.Stat(srcDes); os.IsNotExist(err) {
+		_, errHomeSrc := os.Stat(srcDes)
+		_, errVendorSrc := os.Stat(vendorSrcDes)
+		if os.IsNotExist(errHomeSrc) && os.IsNotExist(errVendorSrc) {
 			if gitPkg.Path == "" {
 				gitPkg.Path = fmt.Sprintf("https://%s.git", context.PackageName)
 			}
@@ -326,9 +326,12 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string
 				return nil, err
 			}
 			status = pkg.DlStatusOk
-		} else if err != nil {
-			return nil, err
 		} else {
+			if errHomeSrc != nil && !os.IsNotExist(errHomeSrc) {
+				return nil, errHomeSrc
+			} else if errVendorSrc != nil && !os.IsNotExist(errVendorSrc) {
+				return nil, errVendorSrc
+			}
 			status = pkg.DlStatusSkip
 			log.WithFields(log.Fields{
 				"pkg":      key,
