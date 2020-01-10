@@ -6,7 +6,9 @@ import (
 	"github.com/genshen/pkg/conf"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/config"
 	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 	"io"
 	"net/http"
 	"net/url"
@@ -133,51 +135,39 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 	}); err != nil {
 		return err
 	} else { // clone succeed.
+		// fetch all branches references from remote
+		if err := repos.Fetch(&git.FetchOptions{
+			RefSpecs: []config.RefSpec{"refs/*:refs/*", "HEAD:refs/heads/HEAD"},
+		}); err != nil {
+			return err
+		}
+
 		var found = false
-		// check tags
-		if tagRefs, err := repos.Tags(); err != nil {
+		// check branches and tags
+		if refIter, err := repos.Storer.IterReferences(); err != nil {
 			return err
 		} else {
+			refIter := storer.NewReferenceFilteredIter(func(r *plumbing.Reference) bool {
+				return r.Name().IsTag() || r.Name().IsBranch()
+			}, refIter)
+
 			for {
-				if t, err := tagRefs.Next(); err != nil {
+				if t, err := refIter.Next(); err != nil {
 					if err == io.EOF {
 						break
 					} else {
 						return err
 					}
 				} else {
-					if t.Name().String() == "refs/tags/"+version {
+					if (t.Name().String() == "refs/tags/"+version) || (t.Name().String() == "refs/heads/"+version) {
 						checkoutOpt.Branch = t.Name()
 						found = true
 						break
 					}
 				}
-				return nil
 			}
 		}
-		// check branch
-		if !found {
-			if branchRefs, err := repos.Branches(); err != nil {
-				return err
-			} else {
-				for {
-					if t, err := branchRefs.Next(); err != nil {
-						if err == io.EOF {
-							break
-						} else {
-							return err
-						}
-					} else {
-						if t.Name().String() == "refs/heads/"+version {
-							checkoutOpt.Branch = t.Name()
-							found = true
-							break
-						}
-					}
-					return nil
-				}
-			}
-		}
+
 		if !found {
 			// checkout to hash, if hash is not empty, then checkout to some commit.
 			checkoutOpt.Hash = plumbing.NewHash(version)
