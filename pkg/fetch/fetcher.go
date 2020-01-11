@@ -22,6 +22,15 @@ func (git *YamlGitPkgFetcher) setPackageMeta(pkgPath string, meta *pkg.PackageMe
 	meta.TargetName = git.Target
 	meta.CMakeLib = git.CMakeLib
 	meta.Builder = git.Build[:]
+	if meta.CMakeLib == "" && len(meta.Builder) == 0 {
+		// if user specified cmake lib and build commands are not set,
+		// we set self cmake lib and self build commands.
+		// Note: this self cmake lib and self build commands can be overwrite
+		// by package specified self cmake lib and self build commands.
+		meta.SelfCMakeLib = pkg.InsAutoPkg
+		bs := []string{pkg.InsAutoPkg}
+		meta.SelfBuild = bs[:]
+	}
 
 	// parse package path(name), target and version from key and gitPkg
 	if err := meta.SetPackageName(pkgPath); err != nil {
