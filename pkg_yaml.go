@@ -1,7 +1,9 @@
 package pkg
 
 import (
+	"errors"
 	"fmt"
+	"runtime"
 )
 
 // for pkg yaml file parsing
@@ -62,6 +64,17 @@ type V1GitPackage struct {
 type V1FilesPackage struct {
 	V1Package `yaml:",inline"`
 	Files     map[string]string `yaml:"files"`
+}
+
+// find builder by os. If builder[os] is not found, return a fallback builder.
+func (yamlPkg *YamlPkg) FindBuilder() ([]string, error) {
+	if _build, ok := yamlPkg.Build[runtime.GOOS]; ok {
+		return _build[:], nil // builder can b empty if specified
+	}
+	if _build, ok := yamlPkg.Build["fallback"]; ok {
+		return _build[:], nil // builder can b empty if specified
+	}
+	return nil, errors.New("fallback builder is not specified")
 }
 
 func (v1 *V1Packages) MigrateToV2(d *YamlDependencies) error {

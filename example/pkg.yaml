@@ -34,6 +34,8 @@ dependencies:
         - CP toml.hpp {{.INCLUDE}}/toml.hpp
 
 build:
+  fallback:
+    - RUN {{.CACHE}} cmake {{.SRC_DIR}} -DCMAKE_INSTALL_PREFIX={{.PKG_DIR}}; make -j {{.CORES}}; make install
   linux:
     - RUN {{.CACHE}} cmake {{.SRC_DIR}} -DCMAKE_INSTALL_PREFIX={{.PKG_DIR}}; make -j {{.CORES}}; make install
   darwin:

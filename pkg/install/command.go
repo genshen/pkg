@@ -55,7 +55,7 @@ func RunIns(pkgHome, pkgName, srcPath, ins string, verbose bool) error {
 		if err := involveShell(pkgHome, workDir, triple.Third, verbose); err != nil {
 			return err
 		}
-	case "CMAKE": // run cmake commands, format CMAKE {config args} {build args}
+	case pkg.InsCmake: // run cmake commands, format CMAKE {config args} {build args}
 		packageCacheDir := pkg.GetCachePath(pkgHome, pkgName)
 		// remove old work dir files.
 		if _, err := os.Stat(packageCacheDir); err != nil {
@@ -154,7 +154,7 @@ func WriteIns(w *bufio.Writer, pkgHome, pkgName, packageSrcPath, ins string) err
 		}
 	}
 
-	if triple.First == "CMAKE" {
+	if triple.First == pkg.InsCmake {
 		var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",
 			packageSrcPath, pkg.GetCachePath(pkgHome, pkgName), pkg.GetPackagePkgPath(pkgHome, pkgName), triple.Second)
 		var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install %s",
