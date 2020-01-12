@@ -20,6 +20,7 @@ type YamlFilesPkgFetcher pkg.YamlFilesPackage
 func (git *YamlGitPkgFetcher) setPackageMeta(pkgPath string, meta *pkg.PackageMeta) error {
 	meta.Version = git.Version
 	meta.TargetName = git.Target
+	meta.Features = git.Features
 	meta.CMakeLib = git.CMakeLib
 	meta.Builder = git.Build[:]
 	if meta.CMakeLib == "" && len(meta.Builder) == 0 {

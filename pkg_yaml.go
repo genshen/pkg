@@ -26,8 +26,9 @@ type YamlPackage V1Package
 
 type YamlGitPackage struct {
 	YamlPackage `yaml:",inline"`
-	Version     string `yaml:"version"`
-	Target      string `yaml:"target"`
+	Version     string   `yaml:"version"`
+	Target      string   `yaml:"target"`
+	Features    []string `yaml:"features"`
 }
 
 type YamlFilesPackage struct {
