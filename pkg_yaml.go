@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"runtime"
 )
 
 // for pkg yaml file parsing
@@ -25,8 +26,9 @@ type YamlPackage V1Package
 
 type YamlGitPackage struct {
 	YamlPackage `yaml:",inline"`
-	Version     string `yaml:"version"`
-	Target      string `yaml:"target"`
+	Version     string   `yaml:"version"`
+	Target      string   `yaml:"target"`
+	Features    []string `yaml:"features"`
 }
 
 type YamlFilesPackage struct {
@@ -62,6 +64,17 @@ type V1GitPackage struct {
 type V1FilesPackage struct {
 	V1Package `yaml:",inline"`
 	Files     map[string]string `yaml:"files"`
+}
+
+// find builder by os. If builder[os] is not found, return a fallback builder.
+func (yamlPkg *YamlPkg) FindBuilder() []string {
+	if _build, ok := yamlPkg.Build[runtime.GOOS]; ok {
+		return _build[:] // builder can be empty if specified
+	}
+	if _build, ok := yamlPkg.Build["fallback"]; ok {
+		return _build[:] // builder can be empty if specified
+	}
+	return nil
 }
 
 func (v1 *V1Packages) MigrateToV2(d *YamlDependencies) error {

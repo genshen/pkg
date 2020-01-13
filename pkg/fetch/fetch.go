@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 var fetchCommand = &cmds.Command{
@@ -158,10 +157,14 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 
 			// add to build this package.
 			// only all its dependency packages are downloaded, can this package be built.
-			if build, ok := pkgYaml.Build[runtime.GOOS]; ok {
-				depTree.Context.SelfBuild = build[:]
+			builder := pkgYaml.FindBuilder()
+			// overwrite the default builder command and cmake lib,
+			// if they are specified here.
+			if !(builder == nil || len(builder) == 0) || pkgYaml.CMakeLib != "" {
+				depTree.Context.SelfBuild = builder
+				depTree.Context.SelfCMakeLib = pkgYaml.CMakeLib // add cmake include script for this lib
 			}
-			depTree.Context.SelfCMakeLib = pkgYaml.CMakeLib // add cmake include script for this lib
+
 			depTree.IsPkgPackage = true
 			if depTree.Dependencies == nil {
 				depTree.Dependencies = make([]*pkg.DependencyTree, 0)
