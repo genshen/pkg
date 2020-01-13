@@ -42,7 +42,25 @@ set(VENDOR_PATH $ENV{PKG_VENDOR_PATH})
 include_directories(${VENDOR_PATH}/include)
 `
 
-const CmakeToFile = `
+const (
+	CmakeToFileOuterBuild = `
+# lib {{.PackageName}}
+# src: {{.SrcDir}}
+# pkg: {{.PkgDir}}
+# build command:
+#     inner build command: {{.InnerBuildCommand}}
+#     outer build command: {{.OuterBuildCommand}}
+{{if eq .SelfCMakeLib "AUTO_PKG"}}
+if(NOT {{.TargetName}}_FOUND)
+	find_package({{.TargetName}} PATHS {{.PkgDir}})
+endif()
+{{else}}
+	{{.SelfCMakeLib}} # inner cmake
+{{end}}
+{{.CMakeLib}} # outer cmake
+`
+
+	CmakeToFileInnerBuild = `
 # lib {{.PackageName}}
 # src: {{.SrcDir}}
 # pkg: {{.PkgDir}}
@@ -62,6 +80,7 @@ endif()
 {{end}}
 {{.CMakeLib}} # outer cmake
 `
+)
 
 // pkgHome is always pkg root.
 // write cmake script for all direct and indirect dependencies packages.
@@ -195,7 +214,11 @@ func renderCMakeBody(cmake cmakeDepData, writer io.Writer) error {
 	}
 
 	// render template.
-	if t, err := template.New("cmake").Funcs(template.FuncMap{"cmake_opt": CmakeOpt}).Parse(CmakeToFile)
+	var cmakeRenderTpl = CmakeToFileOuterBuild
+	if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc != "" {
+		cmakeRenderTpl = CmakeToFileInnerBuild
+	}
+	if t, err := template.New("cmake").Funcs(template.FuncMap{"cmake_opt": CmakeOpt}).Parse(cmakeRenderTpl)
 		err != nil {
 		return err
 	} else {

@@ -158,7 +158,7 @@ func WriteIns(w *bufio.Writer, pkgHome, pkgName, packageSrcPath, ins string) err
 		var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",
 			packageSrcPath, pkg.GetCachePath(pkgHome, pkgName), pkg.GetPackagePkgPath(pkgHome, pkgName), triple.Second)
 		var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install %s",
-			pkg.GetCachePath(pkgHome, pkgName), triple.Second)
+			pkg.GetCachePath(pkgHome, pkgName), triple.Third)
 		if _, err := w.WriteString(fmt.Sprintf("cd \"%s\"\n%s\n%s\n", pkgHome, configCmd, buildCmd)); err != nil {
 			return err
 		}
