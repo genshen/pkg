@@ -2,24 +2,24 @@ package install
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/genshen/pkg"
 	"github.com/genshen/pkg/pkg/version"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
 type cmakeDepData struct {
-	LibName           string
+	pkg.PackageMeta
 	PkgHome           string
 	SrcDir            string
 	PkgDir            string
 	InnerBuildCommand []string
 	OuterBuildCommand []string
-	InnerCMake        string
-	OuterCMake        string
 }
 
 type cmakeDepHeaderData struct {
@@ -43,14 +43,24 @@ include_directories(${VENDOR_PATH}/include)
 `
 
 const CmakeToFile = `
-# lib {{.LibName}}
+# lib {{.PackageName}}
 # src: {{.SrcDir}}
 # pkg: {{.PkgDir}}
 # build command:
 #     inner build command: {{.InnerBuildCommand}}
 #     outer build command: {{.OuterBuildCommand}}
-{{.InnerCMake}} # inner cmake
-{{.OuterCMake}} # outer cmake
+{{if eq .SelfCMakeLib "AUTO_PKG"}}
+if(NOT {{.TargetName}}_FOUND)
+    {{ range $feature := .Features }}
+    	{{cmake_opt $feature}}
+	{{ end }}
+	add_subdirectory({{.SrcDir}} ${VENDOR_PATH}/deps/{{.PackageName}})
+	find_package({{.TargetName}} PATHS ${VENDOR_PATH}/deps/{{.PackageName}})
+endif()
+{{else}}
+	{{.SelfCMakeLib}} # inner cmake
+{{end}}
+{{.CMakeLib}} # outer cmake
 `
 
 // pkgHome is always pkg root.
@@ -122,16 +132,21 @@ func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, writer io.Writer) err
 
 	for _, dep := range depsList {
 		pkg.AddVendorPathEnv("")                     // relative path.
-		src := dep.Context.VendorSrcPath(pkgHome)    // vendor/src/@pkg@version
+		src := dep.Context.VendorSrcPath("")         // vendor/src/@pkg@version,using relative path.
 		pkg.AddPathEnv(dep.Context.PackageName, src) // add vars for this package, using relative path.
 		// generating cmake script.
 		toFile := cmakeDepData{
-			LibName:    dep.Context.PackageName,
-			InnerCMake: dep.Context.SelfCMakeLib,
-			OuterCMake: dep.Context.CMakeLib,
-			PkgHome:    pkgHome,
-			SrcDir:     src,
-			PkgDir:     pkg.GetPackagePkgPath("", dep.Context.PackageName),
+			PackageMeta: pkg.PackageMeta{
+				PackageName:  dep.Context.PackageName,
+				Version:      dep.Context.Version,
+				TargetName:   dep.Context.TargetName,
+				SelfCMakeLib: dep.Context.SelfCMakeLib,
+				CMakeLib:     dep.Context.CMakeLib,
+				Features:     dep.Context.Features,
+			},
+			PkgHome: pkgHome,
+			SrcDir:  src,
+			PkgDir:  pkg.GetPackagePkgPath("", dep.Context.PackageName),
 		}
 		// copy slice, don't modify the original data.
 		toFile.OuterBuildCommand = make([]string, len(dep.Context.Builder))
@@ -141,7 +156,7 @@ func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, writer io.Writer) err
 
 		// ignore self cmake if the cmake in override by outer cmake lib.
 		if dep.Context.CMakeLib != "" {
-			toFile.InnerCMake = ""
+			toFile.SelfCMakeLib = ""
 		}
 		if err := renderCMakeBody(toFile, writer); err != nil {
 			return err
@@ -166,11 +181,11 @@ func renderCMakeHeader(writer io.Writer, isProjectPkg bool, projectVendorPath st
 }
 
 func renderCMakeBody(cmake cmakeDepData, writer io.Writer) error {
-	if cmake.InnerCMake == "" && cmake.OuterCMake == "" {
+	if cmake.SelfCMakeLib == "" && cmake.CMakeLib == "" {
 		return nil
 	}
-	cmake.InnerCMake = pkg.ProcessEnv(cmake.InnerCMake)
-	cmake.OuterCMake = pkg.ProcessEnv(cmake.OuterCMake)
+	cmake.SelfCMakeLib = pkg.ProcessEnv(cmake.SelfCMakeLib)
+	cmake.CMakeLib = pkg.ProcessEnv(cmake.CMakeLib)
 	// InnerBuildCommand and OuterBuildCommand is just used in comment.
 	for i, v := range cmake.InnerBuildCommand {
 		cmake.InnerBuildCommand[i] = pkg.ProcessEnv(v)
@@ -180,7 +195,8 @@ func renderCMakeBody(cmake cmakeDepData, writer io.Writer) error {
 	}
 
 	// render template.
-	if t, err := template.New("cmake").Parse(CmakeToFile); err != nil {
+	if t, err := template.New("cmake").Funcs(template.FuncMap{"cmake_opt": CmakeOpt}).Parse(CmakeToFile)
+		err != nil {
 		return err
 	} else {
 		if err := t.Execute(writer, cmake); err != nil {
@@ -188,4 +204,13 @@ func renderCMakeBody(cmake cmakeDepData, writer io.Writer) error {
 		}
 	}
 	return nil
+}
+
+// set cmake option in template
+func CmakeOpt(feature string) (string, error) {
+	pair := strings.SplitN(feature, "=", 2)
+	if len(pair) != 2 {
+		return "", fmt.Errorf("feature %s with incorrect format", feature)
+	}
+	return fmt.Sprintf("set(%s %s CACHE BOOL \"enable/disable %s\")", pair[0], pair[1], pair[0]), nil
 }
