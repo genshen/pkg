@@ -18,11 +18,26 @@ type InsExecutor struct {
 	verbose bool   // flag to show building logs when running a command
 }
 
-func NewInsExecutor(pkgHome string, verbose bool) InsExecutor {
-	return InsExecutor{pkgHome: pkgHome, verbose: verbose}
+func NewInsExecutor(pkgHome string, verbose bool) *InsExecutor {
+	return &InsExecutor{pkgHome: pkgHome, verbose: verbose}
 }
 
 func (in *InsExecutor) Setup() error {
+	return nil
+}
+
+func (in *InsExecutor) PkgPreInstall(meta *pkg.PackageMeta) error {
+	log.WithFields(log.Fields{
+		"pkg": meta.PackageName,
+	}).Info("installing package.")
+
+	return nil
+}
+
+func (in *InsExecutor) PkgPostInstall(meta *pkg.PackageMeta) error {
+	log.WithFields(log.Fields{
+		"pkg": meta.PackageName,
+	}).Info("package built and installed.")
 	return nil
 }
 

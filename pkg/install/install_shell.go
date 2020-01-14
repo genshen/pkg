@@ -38,6 +38,17 @@ PKG_SRC_PATH=%s
 	return nil
 }
 
+func (sh *InsShellWriter) PkgPreInstall(meta *pkg.PackageMeta) error {
+	if _, err := sh.writer.WriteString(fmt.Sprintf("\n## pacakge %s\n", meta.PackageName)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sh *InsShellWriter) PkgPostInstall(meta *pkg.PackageMeta) error {
+	return nil
+}
+
 func (sh *InsShellWriter) InsCp(triple pkg.InsTriple, meta *pkg.PackageMeta) error {
 	if triple.Second == "" || triple.Third == "" {
 		return errors.New("CP instruction must have src and des")
