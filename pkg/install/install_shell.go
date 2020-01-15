@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/genshen/pkg"
+	"os"
 	"path/filepath"
 )
 
@@ -92,5 +93,14 @@ func (sh *InsShellWriter) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) 
 }
 
 func (sh *InsShellWriter) InsAutoPkg(triple pkg.InsTriple, meta *pkg.PackageMeta) error {
+	// if it is auto pkg and outer build mode
+	// todo only for inner builders
+	if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc == "" {
+		// use cmake instruction with features (features as cmake options)
+		triple.First = pkg.InsCmake
+		triple.Second = featuresToOptions(meta.Features)
+		triple.Third = ""
+		return sh.InsCMake(triple, meta)
+	}
 	return nil
 }

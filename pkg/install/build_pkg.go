@@ -3,7 +3,6 @@ package install
 import (
 	"fmt"
 	"github.com/genshen/pkg"
-	"os"
 	"strings"
 )
 
@@ -26,12 +25,6 @@ func buildPkg(inst InsInterface, lists []string, metas map[string]pkg.PackageMet
 		if len(meta.Builder) == 0 {
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
-				// if it is auto pkg and outer build mode
-				if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc == "" && ins == pkg.InsAutoPkg {
-					// use cmake instruction with features (features as cmake options)
-					cmakeOpts := featuresToOptions(meta.Features)
-					ins = fmt.Sprintf(`%s "%s" "%s"`, pkg.InsCmake, cmakeOpts, "")
-				}
 				// replace vars in instruction with real value and run the instruction.
 				if err := RunIns(inst, &meta, pkg.ProcessEnv(ins)); err != nil {
 					return err
@@ -75,12 +68,6 @@ func generateShell(inst InsInterface, lists []string, metas map[string]pkg.Packa
 		if len(meta.Builder) == 0 {
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
-				// if it is auto pkg and outer build mode
-				if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc == "" && ins == pkg.InsAutoPkg {
-					// use cmake instruction with features (features as cmake options)
-					cmakeOpts := featuresToOptions(meta.Features)
-					ins = fmt.Sprintf(`%s "%s" "%s"`, pkg.InsCmake, cmakeOpts, "")
-				}
 				// replace vars in instruction with real value and run the instruction.
 				if err := RunIns(inst, &meta, pkg.ProcessEnv(ins)); err != nil {
 					return err

@@ -112,6 +112,14 @@ func (in *InsExecutor) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) err
 }
 
 func (in *InsExecutor) InsAutoPkg(triple pkg.InsTriple, meta *pkg.PackageMeta) error {
+	// if it is auto pkg and outer build mode
+	if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc == "" {
+		// use cmake instruction with features (features as cmake options)
+		triple.First = pkg.InsCmake
+		triple.Second = featuresToOptions(meta.Features)
+		triple.Third = ""
+		return in.InsCMake(triple, meta)
+	}
 	return nil
 }
 
