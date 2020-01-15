@@ -71,6 +71,10 @@ func RunIns(inst InsInterface, meta *pkg.PackageMeta, envs *pkg.PackageEnvs, ins
 			if err := inst.InsCMake(triple, meta); err != nil {
 				return err
 			}
+		case pkg.InsAutoPkg:
+			if err := inst.InsAutoPkg(triple, meta); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
