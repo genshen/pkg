@@ -26,12 +26,13 @@ func (in *InsExecutor) Setup() error {
 	return nil
 }
 
-func (in *InsExecutor) PkgPreInstall(meta *pkg.PackageMeta) error {
+func (in *InsExecutor) PkgPreInstall(meta *pkg.PackageMeta) (*pkg.PackageEnvs, error) {
 	log.WithFields(log.Fields{
 		"pkg": meta.PackageName,
 	}).Info("installing package.")
-
-	return nil
+	// package env
+	packageEnv := pkg.NewPackageEnvs(in.pkgHome, meta.PackageName, meta.VendorSrcPath(in.pkgHome))
+	return packageEnv, nil
 }
 
 func (in *InsExecutor) PkgPostInstall(meta *pkg.PackageMeta) error {
@@ -124,28 +125,32 @@ func (in *InsExecutor) InsAutoPkg(triple pkg.InsTriple, meta *pkg.PackageMeta) e
 }
 
 // run instruction.
-func RunIns(inst InsInterface, meta *pkg.PackageMeta, ins string) error {
-	ins = strings.Trim(ins, " ")
-	triple, err := pkg.ParseIns(ins)
-	if err != nil {
+func RunIns(inst InsInterface, meta *pkg.PackageMeta, envs *pkg.PackageEnvs, ins string) error {
+	if expandedIns, err := pkg.ExpandEnv(ins, envs); err != nil {
 		return err
-	}
+	} else {
+		// parse instruction
+		triple, err := pkg.ParseIns(strings.Trim(expandedIns, " "))
+		if err != nil {
+			return err
+		}
 
-	switch triple.First {
-	case "CP":
-		if err := inst.InsCp(triple, meta); err != nil {
-			return err
+		switch triple.First {
+		case "CP":
+			if err := inst.InsCp(triple, meta); err != nil {
+				return err
+			}
+		case "RUN":
+			if err := inst.InsRun(triple, meta); err != nil {
+				return err
+			}
+		case pkg.InsCmake: // run cmake commands, format: CMAKE {config args} {build args}
+			if err := inst.InsCMake(triple, meta); err != nil {
+				return err
+			}
 		}
-	case "RUN":
-		if err := inst.InsRun(triple, meta); err != nil {
-			return err
-		}
-	case pkg.InsCmake: // run cmake commands, format: CMAKE {config args} {build args}
-		if err := inst.InsCMake(triple, meta); err != nil {
-			return err
-		}
+		return nil
 	}
-	return nil
 }
 
 func involveShell(pkgHome, workDir, script string, verbose bool) error {

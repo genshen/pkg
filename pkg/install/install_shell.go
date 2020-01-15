@@ -7,6 +7,7 @@ import (
 	"github.com/genshen/pkg"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // writer instructions as shell format to file
@@ -39,11 +40,15 @@ PKG_SRC_PATH=%s
 	return nil
 }
 
-func (sh *InsShellWriter) PkgPreInstall(meta *pkg.PackageMeta) error {
+func (sh *InsShellWriter) PkgPreInstall(meta *pkg.PackageMeta) (*pkg.PackageEnvs, error) {
+	// using short path with env '$PKG_SRC_PATH'.
+	packageSrcPath := strings.Replace(meta.VendorSrcPath(sh.pkgHome), pkg.GetPkgSrcPath(sh.pkgHome), "$PKG_SRC_PATH", 1)
+	// package env
+	packageEnv := pkg.NewPackageEnvs("$PROJECT_HOME", meta.PackageName, packageSrcPath)
 	if _, err := sh.writer.WriteString(fmt.Sprintf("\n## pacakge %s\n", meta.PackageName)); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return packageEnv, nil
 }
 
 func (sh *InsShellWriter) PkgPostInstall(meta *pkg.PackageMeta) error {

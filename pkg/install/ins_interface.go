@@ -6,7 +6,7 @@ import "github.com/genshen/pkg"
 type InsInterface interface {
 	// setup the building
 	Setup() error
-	PkgPreInstall(meta *pkg.PackageMeta) error
+	PkgPreInstall(meta *pkg.PackageMeta) (*pkg.PackageEnvs, error)
 	PkgPostInstall(meta *pkg.PackageMeta) error
 	// files copy
 	InsCp(triple pkg.InsTriple, meta *pkg.PackageMeta) error

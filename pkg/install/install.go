@@ -113,7 +113,7 @@ func (b *install) Run() error {
 			if err != nil {
 				return err
 			}
-			if err := generateShell(shWriter, options.lists, options.Metas, b.PkgHome); err != nil {
+			if err := buildPkg(shWriter, options.lists, options.Metas, b.PkgHome); err != nil {
 				return err
 			}
 
