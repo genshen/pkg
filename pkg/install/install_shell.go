@@ -60,8 +60,9 @@ func (sh *InsShellWriter) InsCp(triple pkg.InsTriple, meta *pkg.PackageMeta) err
 		return errors.New("CP instruction must have src and des")
 	}
 
-	srcPath := meta.VendorSrcPath(sh.pkgHome) // todo: use shell variable as prefix
-	if _, err := sh.writer.WriteString(fmt.Sprintf("mkdir -p \"%s\"\n", pkg.GetIncludePath(sh.pkgHome))); err != nil {
+	pathBase := "${PROJECT_HOME}"
+	srcPath := meta.VendorSrcPath(pathBase)
+	if _, err := sh.writer.WriteString(fmt.Sprintf("mkdir -p \"%s\"\n", pkg.GetIncludePath(pathBase))); err != nil {
 		return err
 	}
 	if _, err := sh.writer.WriteString(fmt.Sprintf("cp -r \"%s\" \"%s\"\n",
@@ -84,14 +85,15 @@ func (sh *InsShellWriter) InsRun(triple pkg.InsTriple, meta *pkg.PackageMeta) er
 }
 
 func (sh *InsShellWriter) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) error {
-	srcPath := meta.VendorSrcPath(sh.pkgHome) // todo: use shell variable as prefix
+	pathBase := "${PROJECT_HOME}"
+	srcPath := meta.VendorSrcPath(pathBase)
 
 	var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",
-		srcPath, pkg.GetCachePath(sh.pkgHome, meta.PackageName),
-		pkg.GetPackagePkgPath(sh.pkgHome, meta.PackageName), triple.Second)
+		srcPath, pkg.GetCachePath(pathBase, meta.PackageName),
+		pkg.GetPackagePkgPath(pathBase, meta.PackageName), triple.Second)
 	var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install %s",
-		pkg.GetCachePath(sh.pkgHome, meta.PackageName), triple.Third)
-	if _, err := sh.writer.WriteString(fmt.Sprintf("cd \"%s\"\n%s\n%s\n", sh.pkgHome, configCmd, buildCmd)); err != nil {
+		pkg.GetCachePath(pathBase, meta.PackageName), triple.Third)
+	if _, err := sh.writer.WriteString(fmt.Sprintf("cd \"%s\"\n%s\n%s\n", pathBase, configCmd, buildCmd)); err != nil {
 		return err
 	}
 	return nil
