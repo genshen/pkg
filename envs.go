@@ -2,50 +2,64 @@ package pkg
 
 import (
 	"bytes"
-	"errors"
+	"reflect"
 	"runtime"
 	"strconv"
 	"text/template"
 )
 
-/* envs used in pkg template. */
-var vars map[string]string;
+const pkgTagName = "pkg"
 
-const PKGROOT = "PKG_ROOT"
-
-func init() {
-	vars = make(map[string]string)
-	vars["CORES"] = strconv.Itoa(runtime.NumCPU())
+// paths env variable used in instruction
+type PackageEnvs struct {
+	PkgRoot             string `pkg:"PKG_ROOT"`              // the path running pkg
+	VendorPath          string `pkg:"VENDOR_PATH"`           // vendor
+	PkgInCPath          string `pkg:"INCLUDE"`               // vendor/include
+	PackageCacheDir     string `pkg:"CACHE"`                 // vendor/cache/@pkg
+	PackagePkgDir       string `pkg:"PKG_DIR"`               // vendor/pkg/@pkg
+	PackagePkgIncDir    string `pkg:"PKG_INC"`               // vendor/pkg/@pkg/include
+	PackageSrcDir       string `pkg:"SRC_DIR"`               // vendor/src/@pkg
+	CMakePackageFindDir string `pkg:"CMAKE_VENDOR_PATH_PKG"` // vendor/pkg/@pkg
 }
 
-// pkgRoot: the root directory of pkg.yaml
-func AddVendorPathEnv(pkgRoot string) {
-	vars[PKGROOT] = pkgRoot
-	vars["VENDOR_PATH"] = GetVendorPath(pkgRoot)
-	vars["INCLUDE"] = GetIncludePath(pkgRoot) // vendor/include
-}
-
-// pkgRoot: the root directory of pkg.yaml
-func AddPathEnv(packageName string, packageSrcPath string) error {
-	if root, ok := vars[PKGROOT]; !ok {
-		return errors.New("pkg root variable not set")
-	} else {
-		vars["CACHE"] = GetCachePath(root, packageName)        // vendor/cache/@pkg
-		vars["PKG_DIR"] = GetPackagePkgPath(root, packageName) // vendor/pkg/@pkg
-		vars["PKG_INC"] = GetPkgIncludePath(root, packageName) // vendor/pkg/@pkg/include
-		// CMAKE_VENDOR_PATH_PKG
-		vars["CMAKE_VENDOR_PATH_PKG"] = GetCMakeVendorPkgPath(packageName) // ${VENDOR_PATH}/pkg/@pkg
-		// todo vars["PKG_SRC"] = pkg.GetPackageHomeSrcPath(root, packageName)
-		vars["SRC_DIR"] = packageSrcPath
+// pkgRoot: the root directory of project
+// packageName: package name/path
+// packageSrcPath: path of package source
+func NewPackageEnvs(pkgRoot, packageName, packageSrc string) *PackageEnvs {
+	return &PackageEnvs{
+		PkgRoot:             pkgRoot,
+		VendorPath:          GetVendorPath(pkgRoot),
+		PkgInCPath:          GetIncludePath(pkgRoot),
+		PackageCacheDir:     GetCachePath(pkgRoot, packageName),
+		PackagePkgDir:       GetPackagePkgPath(pkgRoot, packageName),
+		PackagePkgIncDir:    GetPkgIncludePath(pkgRoot, packageName),
+		PackageSrcDir:       packageSrc,
+		CMakePackageFindDir: GetCMakeVendorPkgPath(packageName),
 	}
-	return nil
 }
 
 // replace origin string with args values.
-func ProcessEnv(origin string) string {
-	t := template.New("o")
-	t.Parse(origin)
-	sb := bytes.NewBufferString("")
-	t.Execute(sb, vars)
-	return sb.String()
+func ExpandEnv(origin string, envs *PackageEnvs) (string, error) {
+	var vars = make(map[string]string)
+	// add global envs
+	vars["CORES"] = strconv.Itoa(runtime.NumCPU())
+	// convert struct to map (key is the tag).
+	t := reflect.TypeOf(*envs)
+	v := reflect.ValueOf(*envs)
+	for i := 0; i < t.NumField(); i++ {
+		// Get the field tag value
+		tag := t.Field(i).Tag.Get(pkgTagName)
+		vars[tag] = v.Field(i).Interface().(string)
+	}
+
+	// template rendering
+	if t, err := template.New("o").Parse(origin); err != nil {
+		return "", err
+	} else {
+		sb := bytes.NewBufferString("")
+		if err := t.Execute(sb, vars); err != nil {
+			return "", err
+		}
+		return sb.String(), nil
+	}
 }

@@ -150,9 +150,9 @@ func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, writer io.Writer) err
 	}
 
 	for _, dep := range depsList {
-		pkg.AddVendorPathEnv("")                     // relative path.
-		src := dep.Context.VendorSrcPath("")         // vendor/src/@pkg@version,using relative path.
-		pkg.AddPathEnv(dep.Context.PackageName, src) // add vars for this package, using relative path.
+		src := dep.Context.VendorSrcPath("") // vendor/src/@pkg@version,using relative path.
+		// add env variables for this package, using relative path.
+		packageEnv := pkg.NewPackageEnvs("", dep.Context.PackageName, src)
 		// generating cmake script.
 		toFile := cmakeDepData{
 			PackageMeta: pkg.PackageMeta{
@@ -177,7 +177,7 @@ func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, writer io.Writer) err
 		if dep.Context.CMakeLib != "" {
 			toFile.SelfCMakeLib = ""
 		}
-		if err := renderCMakeBody(toFile, writer); err != nil {
+		if err := renderCMakeBody(toFile, packageEnv, writer); err != nil {
 			return err
 		}
 	}
@@ -199,18 +199,36 @@ func renderCMakeHeader(writer io.Writer, isProjectPkg bool, projectVendorPath st
 	return nil
 }
 
-func renderCMakeBody(cmake cmakeDepData, writer io.Writer) error {
+func renderCMakeBody(cmake cmakeDepData, packageEnv *pkg.PackageEnvs, writer io.Writer) error {
 	if cmake.SelfCMakeLib == "" && cmake.CMakeLib == "" {
 		return nil
 	}
-	cmake.SelfCMakeLib = pkg.ProcessEnv(cmake.SelfCMakeLib)
-	cmake.CMakeLib = pkg.ProcessEnv(cmake.CMakeLib)
+	// expand self cmake lib
+	if selfCmakeLib, err := pkg.ExpandEnv(cmake.SelfCMakeLib, packageEnv); err != nil {
+		return err
+	} else {
+		cmake.SelfCMakeLib = selfCmakeLib
+	}
+	// expand cmake lib
+	if cmakeLib, err := pkg.ExpandEnv(cmake.CMakeLib, packageEnv); err != nil {
+		return err
+	} else {
+		cmake.CMakeLib = cmakeLib
+	}
 	// InnerBuildCommand and OuterBuildCommand is just used in comment.
 	for i, v := range cmake.InnerBuildCommand {
-		cmake.InnerBuildCommand[i] = pkg.ProcessEnv(v)
+		if innerBuilder, err := pkg.ExpandEnv(v, packageEnv); err != nil {
+			return err
+		} else {
+			cmake.InnerBuildCommand[i] = innerBuilder
+		}
 	}
 	for i, v := range cmake.OuterBuildCommand {
-		cmake.OuterBuildCommand[i] = pkg.ProcessEnv(v)
+		if outerBuilder, err := pkg.ExpandEnv(v, packageEnv); err != nil {
+			return err
+		} else {
+			cmake.OuterBuildCommand[i] = outerBuilder
+		}
 	}
 
 	// render template.

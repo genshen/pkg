@@ -1,122 +1,79 @@
 package install
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/genshen/pkg"
-	log "github.com/sirupsen/logrus"
-	"os"
 	"strings"
 )
 
 // build pkg from dependency tree.
 // pkgHome: the location of file pkg.yaml
 // skipDep: skip its dependency packages.
-func buildPkg(lists []string, metas map[string]pkg.PackageMeta, pkgHome string, verbose bool) error {
-	for _, item := range lists {
-		log.WithFields(log.Fields{
-			"pkg": item,
-		}).Info("installing package.")
-
-		meta, ok := metas[item]
-		if !ok {
-			return fmt.Errorf("package %s not found", item)
-		}
-
-		pkg.AddVendorPathEnv(pkgHome)                     // use absolute path.
-		pkg.AddPathEnv(item, meta.VendorSrcPath(pkgHome)) // add vars for this package, using relative path.
-		// if outer build is specified, then inner build will be ignored.
-		if len(meta.Builder) == 0 {
-			// run inner build,(self build).
-			for _, ins := range meta.SelfBuild {
-				// if it is auto pkg and outer build mode
-				if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc == "" && ins == pkg.InsAutoPkg {
-					// use cmake instruction with features (features as cmake options)
-					cmakeOpts := featuresToOptions(meta.Features)
-					ins = fmt.Sprintf(`%s "%s" "%s"`, pkg.InsCmake, cmakeOpts, "")
-				}
-				// replace vars in instruction with real value and run the instruction.
-				if err := RunIns(pkgHome, item, meta.VendorSrcPath(pkgHome), pkg.ProcessEnv(ins), verbose); err != nil {
-					return err
-				}
-			}
-		} else {
-			// run outer build.
-			for _, ins := range meta.Builder {
-				if err := RunIns(pkgHome, item, meta.VendorSrcPath(pkgHome), pkg.ProcessEnv(ins), verbose); err != nil {
-					return err
-				}
-			}
-		}
-
-		log.WithFields(log.Fields{
-			"pkg": item,
-		}).Info("package built and installed.")
+func buildPkg(inst InsInterface, lists []string, metas map[string]pkg.PackageMeta, pkgHome string) error {
+	if err := inst.Setup(); err != nil {
+		return nil
 	}
-	return nil
-}
-
-func generateShell(w *bufio.Writer, lists []string, metas map[string]pkg.PackageMeta, pkgHome string) error {
-	const shellHead = `#!/bin/sh
-set -e
-
-export PKG_VENDOR_PATH=%s
-PROJECT_HOME=%s
-PKG_SRC_PATH=%s
-`
-	var pkgSrcPath string
-	if sh, err := pkg.GetHomeSrcPath(); err != nil {
-		return err
-	} else {
-		pkgSrcPath = sh
-	}
-
-	if _, err := w.WriteString(fmt.Sprintf(shellHead, pkg.GetVendorPath(pkgHome), pkgHome, pkgSrcPath)); err != nil {
-		return err
-	}
-
 	for _, item := range lists {
 		meta, ok := metas[item]
 		if !ok {
 			return fmt.Errorf("package `%s` not found", item)
 		}
 
-		if _, err := w.WriteString(fmt.Sprintf("\n## pacakge %s\n", item)); err != nil {
+		packageEnv, err := inst.PkgPreInstall(&meta)
+		if err != nil {
 			return err
 		}
 
-		// using short path with env '$PKG_SRC_PATH'.
-		packageSrc := strings.Replace(meta.VendorSrcPath(pkgHome), pkgSrcPath, "$PKG_SRC_PATH", 1)
-		pkg.AddVendorPathEnv("$PROJECT_HOME") // use absolute path.
-		// add vars for this package
-		if err := pkg.AddPathEnv(item, packageSrc); err != nil {
-			return err
-		}
 		// if outer build is specified, then inner build will be ignored.
 		if len(meta.Builder) == 0 {
 			// run inner build,(self build).
 			for _, ins := range meta.SelfBuild {
-				// if it is auto pkg and outer build mode
-				if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc == "" && ins == pkg.InsAutoPkg {
-					// use cmake instruction with features (features as cmake options)
-					cmakeOpts := featuresToOptions(meta.Features)
-					ins = fmt.Sprintf(`%s "%s" "%s"`, pkg.InsCmake, cmakeOpts, "")
-				}
-				// replace vars in instruction with real value and run the instruction.
-				if err := WriteIns(w, "$PROJECT_HOME", item, packageSrc, pkg.ProcessEnv(ins)); err != nil {
+				if err := RunIns(inst, &meta, packageEnv, ins); err != nil {
 					return err
 				}
 			}
 		} else {
 			// run outer build.
 			for _, ins := range meta.Builder {
-				if err := WriteIns(w, "$PROJECT_HOME", item, packageSrc, pkg.ProcessEnv(ins)); err != nil {
+				if err := RunIns(inst, &meta, packageEnv, ins); err != nil {
 					return err
 				}
 			}
 		}
+		if err := inst.PkgPostInstall(&meta); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+// run instruction.
+func RunIns(inst InsInterface, meta *pkg.PackageMeta, envs *pkg.PackageEnvs, ins string) error {
+	if expandedIns, err := pkg.ExpandEnv(ins, envs); err != nil {
+		return err
+	} else {
+		// parse instruction
+		triple, err := pkg.ParseIns(strings.Trim(expandedIns, " "))
+		if err != nil {
+			return err
+		}
+
+		switch triple.First {
+		case "CP":
+			if err := inst.InsCp(triple, meta); err != nil {
+				return err
+			}
+		case "RUN":
+			if err := inst.InsRun(triple, meta); err != nil {
+				return err
+			}
+		case pkg.InsCmake: // run cmake commands, format: CMAKE {config args} {build args}
+			if err := inst.InsCMake(triple, meta); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 func featuresToOptions(features []string) string {

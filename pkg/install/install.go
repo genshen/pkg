@@ -109,14 +109,19 @@ func (b *install) Run() error {
 		} else {
 			buffWriter := bufio.NewWriter(shellFile)
 			defer buffWriter.Flush()
-			if err := generateShell(buffWriter, options.lists, options.Metas, b.PkgHome); err != nil {
+			shWriter, err := NewInsShellWriter(b.PkgHome, buffWriter)
+			if err != nil {
+				return err
+			}
+			if err := buildPkg(shWriter, options.lists, options.Metas, b.PkgHome); err != nil {
 				return err
 			}
 
 			log.Info("pkg building shell script generated at ", pkg.GetPkgBuildPath(b.PkgHome))
 		}
 	} else {
-		if err := buildPkg(options.lists, options.Metas, b.PkgHome, b.verbose); err != nil {
+		var insExe = NewInsExecutor(b.PkgHome, b.verbose)
+		if err := buildPkg(insExe, options.lists, options.Metas, b.PkgHome); err != nil {
 			return err
 		}
 		log.Info("all packages installed successfully.")
