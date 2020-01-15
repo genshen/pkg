@@ -38,7 +38,6 @@ func buildPkg(inst InsInterface, lists []string, metas map[string]pkg.PackageMet
 				if err := RunIns(inst, &meta, packageEnv, ins); err != nil {
 					return err
 				}
-
 			}
 		}
 		if err := inst.PkgPostInstall(&meta); err != nil {
@@ -46,6 +45,35 @@ func buildPkg(inst InsInterface, lists []string, metas map[string]pkg.PackageMet
 		}
 	}
 	return nil
+}
+
+// run instruction.
+func RunIns(inst InsInterface, meta *pkg.PackageMeta, envs *pkg.PackageEnvs, ins string) error {
+	if expandedIns, err := pkg.ExpandEnv(ins, envs); err != nil {
+		return err
+	} else {
+		// parse instruction
+		triple, err := pkg.ParseIns(strings.Trim(expandedIns, " "))
+		if err != nil {
+			return err
+		}
+
+		switch triple.First {
+		case "CP":
+			if err := inst.InsCp(triple, meta); err != nil {
+				return err
+			}
+		case "RUN":
+			if err := inst.InsRun(triple, meta); err != nil {
+				return err
+			}
+		case pkg.InsCmake: // run cmake commands, format: CMAKE {config args} {build args}
+			if err := inst.InsCMake(triple, meta); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 func featuresToOptions(features []string) string {

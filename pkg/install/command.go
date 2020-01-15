@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // run the instruction
@@ -122,35 +121,6 @@ func (in *InsExecutor) InsAutoPkg(triple pkg.InsTriple, meta *pkg.PackageMeta) e
 		return in.InsCMake(triple, meta)
 	}
 	return nil
-}
-
-// run instruction.
-func RunIns(inst InsInterface, meta *pkg.PackageMeta, envs *pkg.PackageEnvs, ins string) error {
-	if expandedIns, err := pkg.ExpandEnv(ins, envs); err != nil {
-		return err
-	} else {
-		// parse instruction
-		triple, err := pkg.ParseIns(strings.Trim(expandedIns, " "))
-		if err != nil {
-			return err
-		}
-
-		switch triple.First {
-		case "CP":
-			if err := inst.InsCp(triple, meta); err != nil {
-				return err
-			}
-		case "RUN":
-			if err := inst.InsRun(triple, meta); err != nil {
-				return err
-			}
-		case pkg.InsCmake: // run cmake commands, format: CMAKE {config args} {build args}
-			if err := inst.InsCMake(triple, meta); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
 }
 
 func involveShell(pkgHome, workDir, script string, verbose bool) error {
