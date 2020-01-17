@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bytes"
+	"os"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -19,6 +20,7 @@ type PackageEnvs struct {
 	PackagePkgDir       string `pkg:"PKG_DIR"`               // vendor/pkg/@pkg
 	PackagePkgIncDir    string `pkg:"PKG_INC"`               // vendor/pkg/@pkg/include
 	PackageSrcDir       string `pkg:"SRC_DIR"`               // vendor/src/@pkg
+	PackageFindPath     string `pkg:"PKG_FIND_PATH"`         // vendor/deps/@pkg or vendor/pkg/@pkg (decided by env)
 	CMakePackageFindDir string `pkg:"CMAKE_VENDOR_PATH_PKG"` // vendor/pkg/@pkg
 }
 
@@ -26,6 +28,10 @@ type PackageEnvs struct {
 // packageName: package name/path
 // packageSrcPath: path of package source
 func NewPackageEnvs(pkgRoot, packageName, packageSrc string) *PackageEnvs {
+	pkgFindPath := GetPackagePkgPath(pkgRoot, packageName)
+	if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc != "" {
+		pkgFindPath = GetPackageDepsPath(pkgRoot, packageName)
+	}
 	return &PackageEnvs{
 		PkgRoot:             pkgRoot,
 		VendorPath:          GetVendorPath(pkgRoot),
@@ -34,6 +40,7 @@ func NewPackageEnvs(pkgRoot, packageName, packageSrc string) *PackageEnvs {
 		PackagePkgDir:       GetPackagePkgPath(pkgRoot, packageName),
 		PackagePkgIncDir:    GetPkgIncludePath(pkgRoot, packageName),
 		PackageSrcDir:       packageSrc,
+		PackageFindPath:     pkgFindPath,
 		CMakePackageFindDir: GetCMakeVendorPkgPath(packageName),
 	}
 }

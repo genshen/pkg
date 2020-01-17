@@ -68,6 +68,11 @@ func GetPackagePkgPath(base string, packageName string) (path string) {
 	return filepath.Join(base, VendorName, VendorPkg, packageName)
 }
 
+// return @base/vendor/deps/@packageName
+func GetPackageDepsPath(base string, packageName string) (path string) {
+	return filepath.Join(base, VendorName, "deps", packageName)
+}
+
 // return ${VENDOR_PATH}/pkg/@packageName
 func GetCMakeVendorPkgPath(packageName string) (path string) {
 	return filepath.Join(CMakeVendorPath, VendorPkg, packageName)
