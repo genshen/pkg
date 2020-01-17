@@ -17,6 +17,7 @@ type cmakeDepData struct {
 	pkg.PackageMeta
 	SrcDir            string
 	PkgDir            string
+	DepsDir           string // cmake binary dir if it is added by add_subdirectory
 	InnerBuildCommand []string
 	OuterBuildCommand []string
 }
@@ -74,8 +75,8 @@ if(NOT {{.TargetName}}_FOUND)
     {{ range $feature := .Features }}
     	{{cmake_opt $feature}}
 	{{ end }}
-	add_subdirectory({{.SrcDir}} ${VENDOR_PATH}/deps/{{.PackageName}})
-	find_package({{.TargetName}} PATHS ${VENDOR_PATH}/deps/{{.PackageName}})
+	add_subdirectory({{.SrcDir}} {{.DepsDir}})
+	find_package({{.TargetName}} PATHS {{.DepsDir}})
 endif()
 {{else}}
 	{{.SelfCMakeLib}} # inner cmake
@@ -167,6 +168,7 @@ func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, writer io.Writer) err
 				Features:     dep.Context.Features,
 			},
 			SrcDir:  src,
+			DepsDir: pkg.GetPackageDepsPath(basePath, dep.Context.PackageName),
 			PkgDir:  pkg.GetPackagePkgPath(basePath, dep.Context.PackageName),
 		}
 		// copy slice, don't modify the original data.
