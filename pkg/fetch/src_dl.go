@@ -2,6 +2,7 @@ package fetch
 
 import (
 	"errors"
+	"fmt"
 	"github.com/genshen/pkg"
 	"github.com/genshen/pkg/conf"
 	log "github.com/sirupsen/logrus"
@@ -171,6 +172,9 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 		if !found {
 			// checkout to hash, if hash is not empty, then checkout to some commit.
 			checkoutOpt.Hash = plumbing.NewHash(version)
+			if checkoutOpt.Hash.IsZero() {
+				return fmt.Errorf("invalid commit hash: %s", version)
+			}
 		}
 
 		worktree, err := repos.Worktree()
