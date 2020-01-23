@@ -78,16 +78,9 @@ func (e *export) PreRun() error {
 func (e *export) Run() error {
 	tar := archiver.Tar{}
 
-	tarFiles := make([]string, 0, len(e.metas))
-	tarFiles = append(tarFiles, pkg.GetPkgSumPath(e.home))
-	for pkgName, meta := range e.metas {
-		if pkgName == pkg.RootPKG {
-			continue
-		}
-		tarFiles = append(tarFiles, meta.VendorSrcPath(e.home))
-	}
+	tarFiles := [3]string{pkg.GetPkgSumPath(e.home), pkg.GetDepGraphPath(e.home), pkg.GetPkgSrcPath(e.home)}
 
-	if err := tar.Archive(tarFiles, e.output); err != nil {
+	if err := tar.Archive(tarFiles[:], e.output); err != nil {
 		return err
 	}
 	log.Info(fmt.Sprintf("export succeeded, file is saved at %s.", e.output))

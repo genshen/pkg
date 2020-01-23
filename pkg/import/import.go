@@ -7,8 +7,8 @@ import (
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
 	"github.com/mholt/archiver"
+	cp "github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -100,32 +100,51 @@ func (i *_import) Run() error {
 		pkg.GetPkgSumPath(i.home)); err != nil {
 		return err
 	}
-	// mv packages
-	if fileInfo, err := ioutil.ReadDir(importCache); err != nil {
+	// move graph file
+	if err := os.Rename(filepath.Join(importCache, pkg.DepGraph),
+		pkg.GetDepGraphPath(i.home)); err != nil {
 		return err
-	} else {
-		// todo move dirs force option
-		// srcRootPath, err := pkg.GetHomeSrcPath()
-		if err != nil {
+	}
+
+	// check sum file
+	pkgSumPath := pkg.GetPkgSumPath(i.home)
+	if fileInfo, err := os.Stat(pkgSumPath); err != nil {
+		return fmt.Errorf(`stat file %s failed, %s`, pkgSumPath, err)
+	} else if fileInfo.IsDir() {
+		return fmt.Errorf("%s is not a file", pkg.PkgFileName)
+	}
+	// resolve sum file.
+	metas := make(map[string]pkg.PackageMeta)
+	if err := pkg.DepTreeRecover(&metas, pkgSumPath); err != nil {
+		return err
+	}
+	// mv packages
+	for name, meta := range metas {
+		if name == pkg.RootPKG {
+			continue
+		}
+		// todo use pkg api to get from path
+		packagePathFrom := filepath.Join(importCache, pkg.VendorSrc, meta.PackageName+"@"+meta.Version)
+		targetSrcPath := meta.VendorSrcPath(i.home)
+		// check source directory
+		if _, err := os.Stat(packagePathFrom); err != nil {
 			return err
 		}
+		// todo move dirs force option
 		// move one by one
-		for _, file := range fileInfo {
-			targetSrcPath := filepath.Join(pkg.GetPkgSrcPath(i.home), file.Name())
-			if fileInfo, err := os.Stat(targetSrcPath); err != nil {
-				if os.IsNotExist(err) { // directory not exists, can import.
-					if err := os.Rename(filepath.Join(importCache, file.Name()), targetSrcPath); err != nil {
-						return err
-					}
-					log.WithField("package", file.Name()).Info("import package success.")
-				} else {
+		if fileInfo, err := os.Stat(targetSrcPath); err != nil {
+			if os.IsNotExist(err) { // directory not exists, can import.
+				if err := cp.Copy(packagePathFrom, targetSrcPath); err != nil {
 					return err
 				}
-			} else if !fileInfo.IsDir() { // if exists,but is not dir.
-				return fmt.Errorf("%s is not a directory", targetSrcPath)
+				log.WithField("package", meta.PackageName).Info("import package success.")
 			} else {
-				log.WithField("package", file.Name()).Warning("skip importing package, because the package already exists.")
+				return err
 			}
+		} else if !fileInfo.IsDir() { // if exists,but is not dir.
+			return fmt.Errorf("%s is not a directory", targetSrcPath)
+		} else {
+			log.WithField("package", meta.PackageName).Warning("skip importing package, because the package already exists.")
 		}
 	}
 	log.Info(fmt.Sprintf("import succeeded."))
