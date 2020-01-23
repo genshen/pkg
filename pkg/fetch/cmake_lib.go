@@ -47,41 +47,41 @@ include_directories(${VENDOR_PATH}/include)
 
 const (
 	CmakeToFileOuterBuild = `
-# lib {{.PackageName}}
-# src: {{.SrcDir}}
-# pkg: {{.PkgDir}}
+# lib <<.PackageName>>
+# src: <<.SrcDir>>
+# pkg: <<.PkgDir>>
 # build command:
-#     inner build command: {{.InnerBuildCommand}}
-#     outer build command: {{.OuterBuildCommand}}
-{{if eq .SelfCMakeLib "AUTO_PKG"}}
-if(NOT {{.TargetName}}_FOUND)
-	find_package({{.TargetName}} PATHS {{.PkgDir}})
+#     inner build command: <<.InnerBuildCommand>>
+#     outer build command: <<.OuterBuildCommand>>
+<<if eq .SelfCMakeLib "AUTO_PKG">>
+if(NOT ${<<.TargetName>>_FOUND} OR ${<<.TargetName>>_FOUND} STREQUAL "")
+	find_package(<<.TargetName>> PATHS <<.PkgDir>>)
 endif()
-{{else}}
-	{{.SelfCMakeLib}} # inner cmake
-{{end}}
-{{.CMakeLib}} # outer cmake
+<<else>>
+	<<.SelfCMakeLib>> # inner cmake
+<<end>>
+<<.CMakeLib>> # outer cmake
 `
 
 	CmakeToFileInnerBuild = `
-# lib {{.PackageName}}
-# src: {{.SrcDir}}
-# pkg: {{.PkgDir}}
+# lib <<.PackageName>>
+# src: <<.SrcDir>>
+# pkg: <<.PkgDir>>
 # build command:
-#     inner build command: {{.InnerBuildCommand}}
-#     outer build command: {{.OuterBuildCommand}}
-{{if eq .SelfCMakeLib "AUTO_PKG"}}
-if(NOT {{.TargetName}}_FOUND)
-    {{ range $feature := .Features }}
-    	{{cmake_opt $feature}}
-	{{ end }}
-	add_subdirectory({{.SrcDir}} {{.DepsDir}})
-	find_package({{.TargetName}} PATHS {{.DepsDir}})
+#     inner build command: <<.InnerBuildCommand>>
+#     outer build command: <<.OuterBuildCommand>>
+<<if eq .SelfCMakeLib "AUTO_PKG">>
+if(NOT ${PKG_<<.TargetName>>_FOUND} OR ${PKG_<<.TargetName>>_FOUND} STREQUAL "")
+    << range $feature := .Features >>
+    	<<cmake_opt $feature>>
+	<< end >>
+	add_subdirectory(<<.SrcDir>> <<.DepsDir>>)
+	set(PKG_<<.TargetName>>_FOUND ON CACHE BOOL "set package <<.TargetName>> found")
 endif()
-{{else}}
-	{{.SelfCMakeLib}} # inner cmake
-{{end}}
-{{.CMakeLib}} # outer cmake
+<<else>>
+	<<.SelfCMakeLib>> # inner cmake
+<<end>>
+<<.CMakeLib>> # outer cmake
 `
 )
 
@@ -240,7 +240,7 @@ func renderCMakeBody(cmake cmakeDepData, packageEnv *pkg.PackageEnvs, writer io.
 	if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc != "" {
 		cmakeRenderTpl = CmakeToFileInnerBuild
 	}
-	if t, err := template.New("cmake").Funcs(template.FuncMap{"cmake_opt": CmakeOpt}).Parse(cmakeRenderTpl)
+	if t, err := template.New("cmake").Delims("<<", ">>").Funcs(template.FuncMap{"cmake_opt": CmakeOpt}).Parse(cmakeRenderTpl)
 		err != nil {
 		return err
 	} else {
