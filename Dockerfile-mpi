@@ -1,12 +1,12 @@
 ## pkg with mpi env (and clang toolchain, cmake, make).
-## docker build --rm=true  -t genshen/pkg:0.3.2-clang9-mpi .
+## docker build --rm=true  -t genshen/pkg:0.4.0-clang10-mpi .
 
-FROM genshen/pkg:0.3.2-clang9
+FROM genshen/pkg:0.4.0
 
 ARG USER=mpi
 ENV USER_HOME="/home/${USER}"  WORKDIR="/project"  MPI_HOME=/usr/local/mpi-3.3.1
 
-COPY --from=genshen/mpich:3.3.1-clang9.0.0 /usr/local/mpi-3.3.1  /usr/local/mpi-3.3.1
+COPY --from=genshen/mpich:3.3.1-clang10 /usr/local/mpi-3.3.1  /usr/local/mpi-3.3.1
 
 RUN apk add --no-cache sudo \
     && mkdir -p /usr/local/include  /usr/local/bin  /usr/local/lib  \

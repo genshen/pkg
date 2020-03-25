@@ -2,7 +2,7 @@
 
 # docker build --rm=true  -t genshen/pkg:0.2.0 .
 
-FROM golang:1.13.5-alpine3.11 AS builder
+FROM golang:1.14.1-alpine3.11 AS builder
 
 MAINTAINER genshen genshenchu@gmail.com
 
@@ -22,14 +22,14 @@ RUN cd ${PROJECT_PATH} \
 
 
 ## build cmake from source
-FROM genshen/clang-toolchain:9.0.0 AS cmake_builder
+FROM genshen/clang-toolchain:10.0.0 AS cmake_builder
 
 ARG OPENSSL_DOOWNLOOAD_URL="https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.0.2.tar.gz"
 
 # we need remove cmake help
-ARG CMAKE_DOWNLOAD_URL="https://cmake.org/files/v3.16/cmake-3.16.2.tar.gz"
+ARG CMAKE_DOWNLOAD_URL="https://cmake.org/files/v3.17/cmake-3.17.0.tar.gz"
 ARG CMAKE_INSATLL_PATH=/usr/local/cmake
-ARG CMAKE_HELP_PATH=share/cmake-3.16/Help
+ARG CMAKE_HELP_PATH=share/cmake-3.17/Help
 
 # build libressl
 # wget is already install in alpine
@@ -63,7 +63,7 @@ RUN wget ${CMAKE_DOWNLOAD_URL} -O /tmp/cmake.tar.gz \
 
 
 # next start another building context
-FROM genshen/clang-toolchain:9.0.0
+FROM genshen/clang-toolchain:10.0.0
 # Copy only build result from previous step to new lightweight image
 COPY --from=cmake_builder /usr/local/cmake /usr/local/cmake
 COPY --from=cmake_builder /usr/local/libressl/lib/ /usr/local/libressl/
