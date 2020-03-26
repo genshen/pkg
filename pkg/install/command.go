@@ -13,12 +13,20 @@ import (
 
 // run the instruction
 type InsExecutor struct {
+	BaseInsExecutor
 	pkgHome string // home directory of running pkg command
 	verbose bool   // flag to show building logs when running a command
 }
 
-func NewInsExecutor(pkgHome string, verbose bool) *InsExecutor {
-	return &InsExecutor{pkgHome: pkgHome, verbose: verbose}
+func NewInsExecutor(pkgHome string, verbose bool, cmakeConfigArg, cmakeBuildArg string) *InsExecutor {
+	return &InsExecutor{
+		BaseInsExecutor: BaseInsExecutor{
+			cmakeConfigArg: cmakeConfigArg,
+			cmakeBuildArg:  cmakeBuildArg,
+		},
+		pkgHome: pkgHome,
+		verbose: verbose,
+	}
 }
 
 func (in *InsExecutor) Setup() error {
@@ -96,6 +104,13 @@ func (in *InsExecutor) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) err
 	// make dirs
 	if err := os.MkdirAll(packageCacheDir, 0744); err != nil {
 		return err
+	}
+	// prepare cmake config and building command arguments
+	if in.cmakeConfigArg != "" {
+		triple.Second = triple.Second + " " + in.cmakeConfigArg
+	}
+	if in.cmakeBuildArg != "" {
+		triple.Third = triple.Third + " " + in.cmakeBuildArg
 	}
 	// create script
 	var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",

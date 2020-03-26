@@ -16,3 +16,9 @@ type InsInterface interface {
 	InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) error
 	InsAutoPkg(triple pkg.InsTriple, meta *pkg.PackageMeta) error
 }
+
+// base instruction
+type BaseInsExecutor struct {
+	cmakeConfigArg string
+	cmakeBuildArg  string
+}

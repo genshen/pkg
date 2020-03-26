@@ -7,9 +7,10 @@ import (
 )
 
 // build pkg from dependency tree.
-// pkgHome: the location of file pkg.yaml
-// skipDep: skip its dependency packages.
-func buildPkg(inst InsInterface, lists []string, metas map[string]pkg.PackageMeta, pkgHome string) error {
+// inst: instruction interface
+// list: the package to be built
+// metas: metadata for building packages
+func buildPkg(inst InsInterface, lists []string, metas map[string]pkg.PackageMeta) error {
 	if err := inst.Setup(); err != nil {
 		return nil
 	}

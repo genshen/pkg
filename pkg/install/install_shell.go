@@ -12,12 +12,17 @@ import (
 
 // writer instructions as shell format to file
 type InsShellWriter struct {
+	BaseInsExecutor
 	pkgHome string        // home directory of running pkg command
 	writer  *bufio.Writer // shell script file writer
 }
 
-func NewInsShellWriter(pkgHome string, w *bufio.Writer, ) (*InsShellWriter, error) {
+func NewInsShellWriter(pkgHome string, w *bufio.Writer, cmakeConfigArg, cmakeBuildArg string) (*InsShellWriter, error) {
 	return &InsShellWriter{
+		BaseInsExecutor: BaseInsExecutor{
+			cmakeConfigArg: cmakeConfigArg,
+			cmakeBuildArg:  cmakeBuildArg,
+		},
 		pkgHome: pkgHome,
 		writer:  w,
 	}, nil
@@ -88,6 +93,12 @@ func (sh *InsShellWriter) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) 
 	pathBase := "${PROJECT_HOME}"
 	srcPath := meta.VendorSrcPath(pathBase)
 
+	if sh.cmakeConfigArg != "" {
+		triple.Second = triple.Second + " " + sh.cmakeConfigArg
+	}
+	if sh.cmakeBuildArg != "" {
+		triple.Third = triple.Third + " " + sh.cmakeBuildArg
+	}
 	var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",
 		srcPath, pkg.GetCachePath(pathBase, meta.PackageName),
 		pkg.GetPackagePkgPath(pathBase, meta.PackageName), triple.Second)
