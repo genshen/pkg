@@ -1,7 +1,7 @@
 ## pkg with mpi env (and clang toolchain, cmake, make).
-## docker build --rm=true  -t genshen/pkg:0.4.0-clang10-mpi .
+## docker build --rm=true -t genshen/pkg:0.4.1-clang10-mpi .
 
-FROM genshen/pkg:0.4.0
+FROM genshen/pkg:0.4.1
 
 ARG USER=mpi
 ENV USER_HOME="/home/${USER}"  WORKDIR="/project"  MPI_HOME=/usr/local/mpi-3.3.1

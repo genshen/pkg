@@ -1,8 +1,8 @@
 ## pkg with clang toolchain and cmake (pkg may use cc/cxx compiler and cmake tool).
 
-# docker build --rm=true  -t genshen/pkg:0.2.0 .
+# docker build --rm=true  -t genshen/pkg:0.4.1 .
 
-FROM golang:1.14.1-alpine3.11 AS builder
+FROM golang:1.14.6-alpine3.12 AS builder
 
 MAINTAINER genshen genshenchu@gmail.com
 
@@ -24,12 +24,12 @@ RUN cd ${PROJECT_PATH} \
 ## build cmake from source
 FROM genshen/clang-toolchain:10.0.0 AS cmake_builder
 
-ARG OPENSSL_DOOWNLOOAD_URL="https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.0.2.tar.gz"
+ARG OPENSSL_DOOWNLOOAD_URL="https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.2.0.tar.gz"
 
 # we need remove cmake help
-ARG CMAKE_DOWNLOAD_URL="https://cmake.org/files/v3.17/cmake-3.17.0.tar.gz"
+ARG CMAKE_DOWNLOAD_URL="https://cmake.org/files/v3.18/cmake-3.18.0.tar.gz"
 ARG CMAKE_INSATLL_PATH=/usr/local/cmake
-ARG CMAKE_HELP_PATH=share/cmake-3.17/Help
+ARG CMAKE_HELP_PATH=share/cmake-3.18/Help
 
 # build libressl
 # wget is already install in alpine
