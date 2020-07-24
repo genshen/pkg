@@ -12,7 +12,7 @@ RUN apk add --no-cache sudo \
     && mkdir -p /usr/local/include  /usr/local/bin  /usr/local/lib  \
     && ln -s ${MPI_HOME}/bin/* /usr/local/bin/  \
     && ln -s ${MPI_HOME}/include/* /usr/local/include \
-    && ln -s ${MPI_HOME}/lib/* /usr/local/lib  \
+    && ln -sf ${MPI_HOME}/lib/* /usr/local/lib  \
     && adduser -D ${USER} \
     && echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
     && chown -R ${USER}:${USER} ${USER_HOME} \
