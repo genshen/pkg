@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/genshen/pkg"
 	"github.com/genshen/pkg/conf"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/storer"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/config"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/storer"
 	"io"
 	"net/http"
 	"net/url"
@@ -134,6 +134,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 		//ReferenceName: referenceName, // specific branch or tag.
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}); err != nil {
+		log.Println("Error here", err)
 		return err
 	} else { // clone succeed.
 		// fetch all branches references from remote
