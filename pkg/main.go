@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"flag"
+
 	"github.com/genshen/cmds"
 	_ "github.com/genshen/pkg/pkg/clean"
 	_ "github.com/genshen/pkg/pkg/export"
@@ -14,8 +17,13 @@ import (
 
 func main() {
 	cmds.SetProgramName("pkg")
-	err := cmds.Parse()
-	if err != nil {
-		log.Fatal(err)
+	if err := cmds.Parse(); err != nil {
+		if err == flag.ErrHelp {
+		    return
+		}
+		// skip error in sub command parsing, because the error has been printed.
+		if !errors.Is(err, &cmds.SubCommandParseError{}) {
+			log.Fatal(err)
+		}
 	}
 }
