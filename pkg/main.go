@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/genshen/cmds"
+	_ "github.com/genshen/pkg/pkg/clean"
 	_ "github.com/genshen/pkg/pkg/export"
 	_ "github.com/genshen/pkg/pkg/fetch"
 	_ "github.com/genshen/pkg/pkg/import"

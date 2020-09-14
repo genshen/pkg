@@ -91,20 +91,18 @@ func (in *InsExecutor) InsRun(triple pkg.InsTriple, meta *pkg.PackageMeta) error
 func (in *InsExecutor) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) error {
 	packageCacheDir := pkg.GetCachePath(in.pkgHome, meta.PackageName)
 	srcPath := meta.VendorSrcPath(in.pkgHome)
-	// remove old work dir files.
+
+	// make sure the dirs exist.
 	if _, err := os.Stat(packageCacheDir); err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-	} else {
-		if err := os.RemoveAll(packageCacheDir); err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(packageCacheDir, 0744); err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
 	}
-	// make dirs
-	if err := os.MkdirAll(packageCacheDir, 0744); err != nil {
-		return err
-	}
+
 	// prepare cmake config and building command arguments
 	if in.cmakeConfigArg != "" {
 		triple.Second = triple.Second + " " + in.cmakeConfigArg
