@@ -2,14 +2,16 @@ package fetch
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/genshen/pkg"
 	"github.com/genshen/pkg/conf"
-	"os"
+	log "github.com/sirupsen/logrus"
 )
 
 type PackageFetcher interface {
 	setPackageMeta(pkgPath string, meta *pkg.PackageMeta) error
-	fetch(auth map[string]conf.Auth, srcDes string, meta pkg.PackageMeta) error
+	fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]string, srcDes string, meta pkg.PackageMeta) error
 }
 
 type YamlGitPkgFetcher pkg.YamlGitPackage
@@ -40,10 +42,24 @@ func (git *YamlGitPkgFetcher) setPackageMeta(pkgPath string, meta *pkg.PackageMe
 	return nil
 }
 
-func (git *YamlGitPkgFetcher) fetch(auth map[string]conf.Auth, srcDes string, meta pkg.PackageMeta) error {
+func (git *YamlGitPkgFetcher) fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]string, srcDes string, meta pkg.PackageMeta) error {
+	// replace priority: package.path in package's pkg.yaml < local replace in pkg.yaml
+	// < local replace in `pkg.config.yaml` < replace in global config
 	if git.Path == "" {
 		git.Path = fmt.Sprintf("https://%s.git", meta.PackageName)
 	}
+	if replaceAddr, ok := localReplace[meta.PackageName]; ok {
+		git.Path = fmt.Sprintf("https://%s.git", replaceAddr)
+	}
+	if replaceAddr, ok := globalReplace[meta.PackageName]; ok {
+		git.Path = fmt.Sprintf("https://%s.git", replaceAddr)
+	}
+
+	log.WithFields(log.Fields{
+		"pkg": meta.PackageName,
+		"url": git.Path,
+	}).Trace("download url")
+
 	if err := gitSrc(auth, srcDes, meta.PackageName, git.Path, meta.Version); err != nil {
 		_ = os.RemoveAll(srcDes)
 		return err
@@ -61,7 +77,7 @@ func (files *YamlFilesPkgFetcher) setPackageMeta(pkgPath string, meta *pkg.Packa
 	return nil
 }
 
-func (files *YamlFilesPkgFetcher) fetch(auth map[string]conf.Auth, srcDes string, meta pkg.PackageMeta) error {
+func (files *YamlFilesPkgFetcher) fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]string, srcDes string, meta pkg.PackageMeta) error {
 	if err := filesSrc(srcDes, meta.PackageName, files.Path, files.Files); err != nil {
 		_ = os.RemoveAll(srcDes)
 		return err

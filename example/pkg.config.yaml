@@ -2,3 +2,6 @@ auth:
   github.com:
     user: githubuser
     token: my_token
+
+git-replace:
+  github.com/google/googletest: gitee.com/mirrors/googletest

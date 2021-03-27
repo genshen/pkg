@@ -7,13 +7,14 @@ import (
 
 // for pkg yaml file parsing
 type YamlPkg struct {
-	Version  int                 `yaml:"version"`
-	Args     map[string]string   `yaml:"args"`
-	PkgName  string              `yaml:"pkg"`
-	Packages V1Packages          `yaml:"packages"` // for pkg file version 1
-	Deps     YamlDependencies    `yaml:"dependencies"`
-	Build    map[string][]string `yaml:"build"`
-	CMakeLib string              `yaml:"cmake_lib"`
+	Version    int                 `yaml:"version"`
+	Args       map[string]string   `yaml:"args"`
+	GitReplace map[string]string   `yaml:"git-replace"`
+	PkgName    string              `yaml:"pkg"`
+	Packages   V1Packages          `yaml:"packages"` // for pkg file version 1
+	Deps       YamlDependencies    `yaml:"dependencies"`
+	Build      map[string][]string `yaml:"build"`
+	CMakeLib   string              `yaml:"cmake_lib"`
 }
 
 type YamlDependencies struct {
