@@ -43,9 +43,10 @@ func init() {
 }
 
 type fetch struct {
-	PkgHome string // the absolute path of root 'pkg.yaml' form command path.
-	DepTree pkg.DependencyTree
-	Auth    map[string]conf.Auth
+	PkgHome       string // the absolute path of root 'pkg.yaml' form command path.
+	DepTree       pkg.DependencyTree
+	Auth          map[string]conf.Auth
+	GlobalReplace map[string]string
 }
 
 func (f *fetch) PreRun() error {
@@ -72,6 +73,7 @@ func (f *fetch) PreRun() error {
 		return err
 	} else {
 		f.Auth = config.Auth
+		f.GlobalReplace = config.GitReplace
 	}
 
 	return nil
@@ -175,8 +177,13 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 				return err
 			}
 
+			// initial empty local replace list
+			if pkgYaml.GitReplace == nil {
+				pkgYaml.GitReplace = make(map[string]string)
+			}
+
 			// download git based packages source of direct dependencies.
-			if deps, err := f.dlPackagesDepSrc(pkgLock, gitPkgsToInterface(pkgYaml.Deps.GitPackages)); err != nil {
+			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, gitPkgsToInterface(pkgYaml.Deps.GitPackages)); err != nil {
 				return err
 			} else {
 				// copy downloaded packages to vendor directory
@@ -192,7 +199,7 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 				}
 			}
 			// download file based packages
-			if deps, err := f.dlPackagesDepSrc(pkgLock, filesPkgsToInterface(pkgYaml.Deps.FilesPackages)); err != nil {
+			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, filesPkgsToInterface(pkgYaml.Deps.FilesPackages)); err != nil {
 				return err
 			} else {
 				// copy downloaded packages to vendor directory
@@ -209,7 +216,8 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: project root direction.
-func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string]PackageFetcher) ([]*pkg.DependencyTree, error) {
+func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globalReplace map[string]string,
+	packages map[string]PackageFetcher) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
 	// todo packages have dependencies.
 	// todo check install.
@@ -264,7 +272,7 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, packages map[string
 				"pkg":     context.PackageName,
 				"storage": srcDes,
 			}).Info("downloading dependencies.")
-			if err := p.fetch(f.Auth, srcDes, context); err != nil {
+			if err := p.fetch(f.Auth, localReplace, globalReplace, srcDes, context); err != nil {
 				return nil, err
 			}
 			status = pkg.DlStatusOk

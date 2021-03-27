@@ -11,7 +11,8 @@ import (
 const ConfigFileName = "pkg.config.yaml"
 
 type PkgConfig struct {
-	Auth map[string]Auth `yaml:"auth"`
+	Auth       map[string]Auth   `yaml:"auth"`
+	GitReplace map[string]string `yaml:"git-replace"`
 }
 
 func ParseConfig(projectHome string) (*PkgConfig, error) {
