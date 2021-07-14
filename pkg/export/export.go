@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
-	"github.com/mholt/archiver"
+	"github.com/mholt/archiver/v3"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
