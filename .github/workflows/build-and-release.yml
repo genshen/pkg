@@ -39,7 +39,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: build-artifact
-      - run: ls -R
+#      - run: ls -R
 
       - name: Release
         uses: softprops/action-gh-release@v1
@@ -49,6 +49,7 @@ jobs:
             pkg-linux-amd64
             pkg-linux-arm64
             pkg-darwin-amd64
+            pkg-darwin-arm64
             pkg-windows-amd64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
