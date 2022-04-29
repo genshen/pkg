@@ -1,0 +1,54 @@
+# on:
+#   push:
+# tags:
+#   - 'v*'
+on: [push]
+
+name: Build&Release
+
+jobs:
+  build:
+    name: Build release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Get Go dependencies
+        run: go mod download
+
+      - name: Build
+        run: make
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-artifact
+          path: pkg-*
+
+  release:
+    name: On Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: build-artifact
+      - run: ls -R
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            pkg-linux-amd64
+            pkg-linux-arm64
+            pkg-darwin-amd64
+            pkg-windows-amd64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
