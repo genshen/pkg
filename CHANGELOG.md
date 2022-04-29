@@ -11,8 +11,14 @@
 * **go-module:** update dependency packages, including go-git, logrus
 * **go-module:** update package version of github.com/go-git/go-git
 
+### Ci
+
+* **github-action:** add github action config for building and releasing
+* **makefile:** add darwin arm64 support
+
 ### Docs
 
+* **changelog:** update changelog
 * **changelog:** add changelog
 
 ### Feat
@@ -20,6 +26,11 @@
 * improve error handling while parsing sub command in main.go
 * **clean:** add clean sub-command for cleaning building cache files of dependency packages
 * **fetch:** download package src using mirror specified by `git-replace` in pkg.yaml and pkg config
+* **version:** bump version to 0.5.0
+
+### Merge
+
+* Merge pull request [#9](https://github.com/genshen/pkg/issues/9/) from genshen/ci-build-and-release
 
 
 <a name="v0.4.1"></a>
@@ -41,33 +52,18 @@
 
 
 <a name="v0.4.0"></a>
-## [v0.4.0](https://github.com/genshen/pkg/compare/v0.4.0..v0.3.2)
+## [v0.4.0](https://github.com/genshen/pkg/compare/v0.4.0..v0.3.3)
 
 > 2020-03-25
-
-### Chore
-
-* **fetch:** add log before fetching and copies package, and correct some spelling mistakes
 
 ### Feat
 
 * **env:** add env PKG_FIND_PATH (vendor/deps/[@pkg](https://github.com/pkg/)(inner build) or vendor/pkg/[@pkg](https://github.com/pkg/)(outer build))
-* **fetch:** add compatibility for fetching packages from pkg.yaml file version 1
-* **fetch:** redesign pkg.yaml file format, use path as package's name
+* **fetch:** add support for package fallback/default builder commands
 * **fetch:** add support of rendering `file pkg.dep.cmake` when AUTO_PKG is used
 * **fetch:** add `features` into package metadata in yaml config file
 * **fetch:** add parsing of AUTO_PKG instruction if builder commands and cmake lib are not specified
-* **fetch:** add support for package fallback/default builder commands
-* **fetch:** support parsing version and target from package path and package description
-* **fetch:** global cache strategy and global->vendor copy strategy
-* **fetch:** only fetch package from remote if package doesn't exist in global cache and vendor src
-* **fetch:** add feature of checkout to a branch or commit hash when cloning a git package
-* **install:** add CMAKE instruction to build cmake based dependencies
-* **install:** add install instruction parser
 * **install:** handle AUTO_PKG instruction of `pkg build` command: convert to CMAKE instruction
-* **install:** add cmake option and build option for CMAKE instruction
-* **install:** remove cache directory before running cmake in CMAKE instruction
-* **version:** update version to 0.3.3
 * **version:** update version to 0.4.0
 
 ### Fix
@@ -75,16 +71,55 @@
 * **fetch:** remove find_package in cmake package template(for pkg.dep.cmake file) in inner building
 * **fetch:** fix "if version does not match repo's tag/branch/hash, `fetch` still success"
 * **fetch:** rename package name of fetch sub-command from `install` to `fetch`
-* **fetch:** fetching all branches from remote first to fix missing branch checking out
-* **fetch:** fix `object not found` error when checking out to an annotated tag
 * **install:** add missing AUTO_PKG instruction calling when executing building instructions
-* **install:** fix wrong condition of instruction triple when performing shell script generation
 
 ### Improvement
 
 * **fetch:** use cmake variable as prefix(not absolute path) when generating pkg.dep.cmake
-* **fetch:** cache fetched packages to user home and then copy to project vendor for building
 * **install:** use ${PROJECT_HOME} as path prefix when create building shell srcipt
+
+### Refactor
+
+* **fetch:** add DepsDir field to struct cmakeDepData as cmake binary dir for packages inner building
+* **install:** move func RunIns from command.go to build_pkg.go
+* **install:** refactor instruction env expanding: use local struct instead of global map
+* **install:** move AutoPkg redirection to implemantation of interface InsInterface.InsAutoPkg
+* **install:** add more installation interface functions: PkgPreInstall, PkgPostInstall
+* **install:** refactor installation shell script generation and cmd building: use InsInterface
+
+
+<a name="v0.3.3"></a>
+## [v0.3.3](https://github.com/genshen/pkg/compare/v0.3.3..v0.3.2)
+
+> 2020-01-10
+
+### Chore
+
+* **fetch:** add log before fetching and copies package, and correct some spelling mistakes
+
+### Feat
+
+* **fetch:** redesign pkg.yaml file format, use path as package's name
+* **fetch:** global cache strategy and global->vendor copy strategy
+* **fetch:** only fetch package from remote if package doesn't exist in global cache and vendor src
+* **fetch:** add feature of checkout to a branch or commit hash when cloning a git package
+* **fetch:** add compatibility for fetching packages from pkg.yaml file version 1
+* **fetch:** support parsing version and target from package path and package description
+* **install:** add cmake option and build option for CMAKE instruction
+* **install:** remove cache directory before running cmake in CMAKE instruction
+* **install:** add install instruction parser
+* **install:** add CMAKE instruction to build cmake based dependencies
+* **version:** update version to 0.3.3
+
+### Fix
+
+* **fetch:** fetching all branches from remote first to fix missing branch checking out
+* **fetch:** fix `object not found` error when checking out to an annotated tag
+* **install:** fix wrong condition of instruction triple when performing shell script generation
+
+### Improvement
+
+* **fetch:** cache fetched packages to user home and then copy to project vendor for building
 
 ### Merge
 
@@ -93,14 +128,8 @@
 
 ### Refactor
 
-* **fetch:** add DepsDir field to struct cmakeDepData as cmake binary dir for packages inner building
-* **fetch:** add PackageFetcher interface and implementation for files and git packages fetching
 * **fetch:** remove recursive calling when generating pkg.dep.cmake file
-* **install:** refactor instruction env expanding: use local struct instead of global map
-* **install:** move AutoPkg redirection to implemantation of interface InsInterface.InsAutoPkg
-* **install:** add more installation interface functions: PkgPreInstall, PkgPostInstall
-* **install:** refactor installation shell script generation and cmd building: use InsInterface
-* **install:** move func RunIns from command.go to build_pkg.go
+* **fetch:** add PackageFetcher interface and implementation for files and git packages fetching
 
 ### BREAKING CHANGE
 
