@@ -17,11 +17,12 @@ type InsShellWriter struct {
 	writer  *bufio.Writer // shell script file writer
 }
 
-func NewInsShellWriter(pkgHome string, w *bufio.Writer, cmakeConfigArg, cmakeBuildArg string) (*InsShellWriter, error) {
+func NewInsShellWriter(pkgHome string, w *bufio.Writer, nJobs int32, cmakeConfigArg, cmakeBuildArg string) (*InsShellWriter, error) {
 	return &InsShellWriter{
 		BaseInsExecutor: BaseInsExecutor{
 			cmakeConfigArg: cmakeConfigArg,
 			cmakeBuildArg:  cmakeBuildArg,
+			nJobs:          nJobs,
 		},
 		pkgHome: pkgHome,
 		writer:  w,
@@ -102,8 +103,8 @@ func (sh *InsShellWriter) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) 
 	var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",
 		srcPath, pkg.GetCachePath(pathBase, meta.PackageName),
 		pkg.GetPackagePkgPath(pathBase, meta.PackageName), triple.Second)
-	var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install %s",
-		pkg.GetCachePath(pathBase, meta.PackageName), triple.Third)
+	var buildCmd = fmt.Sprintf("cmake --build \"%s\" --target install %s -j %d",
+		pkg.GetCachePath(pathBase, meta.PackageName), triple.Third, sh.nJobs)
 	if _, err := sh.writer.WriteString(fmt.Sprintf("cd \"%s\"\n%s\n%s\n", pathBase, configCmd, buildCmd)); err != nil {
 		return err
 	}
