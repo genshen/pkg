@@ -33,6 +33,7 @@ func init() {
 	buildCommand.FlagSet.StringVar(&cmd.PkgName, "pkg", "", "install a specific package, default is all packages.")
 	buildCommand.FlagSet.BoolVar(&cmd.sh, "sh", false, "skip building, but generate shell script for building packages.")
 	buildCommand.FlagSet.BoolVar(&cmd.self, "self", false, "only build the package specified by `pkg` option(not build dependency packages)")
+	buildCommand.FlagSet.IntVar(&cmd.nJobs, "j", 1, "number of parallel jobs at once while package building.")
 	buildCommand.FlagSet.StringVar(&cmd.cmakeConfigArg, "cmake-conf-arg", "", "arguments used in cmake configuration step.")
 	buildCommand.FlagSet.StringVar(&cmd.cmakeBuildArg, "cmake-build-arg", "", "arguments used in cmake building step.")
 	buildCommand.FlagSet.BoolVar(&cmd.verbose, "verbose", false, "show building logs while installing package(s).")
@@ -48,6 +49,7 @@ type install struct {
 	sh             bool   // generate shell script for building packages(sh)
 	self           bool   // not build build dependency packages.
 	verbose        bool   // log the building log (verbose)
+	nJobs          int    // number of parallel jobs at once while package building
 	cmakeConfigArg string // config argument while installation
 	cmakeBuildArg  string // build argument while installation
 	Metas          map[string]pkg.PackageMeta
@@ -113,7 +115,7 @@ func (b *install) Run() error {
 		} else {
 			buffWriter := bufio.NewWriter(shellFile)
 			defer buffWriter.Flush()
-			shWriter, err := NewInsShellWriter(b.PkgHome, buffWriter, b.cmakeConfigArg, b.cmakeBuildArg)
+			shWriter, err := NewInsShellWriter(b.PkgHome, buffWriter, int32(b.nJobs), b.cmakeConfigArg, b.cmakeBuildArg)
 			if err != nil {
 				return err
 			}
@@ -124,7 +126,7 @@ func (b *install) Run() error {
 			log.Info("pkg building shell script generated at ", pkg.GetPkgBuildPath(b.PkgHome))
 		}
 	} else {
-		var insExe = NewInsExecutor(b.PkgHome, b.verbose, b.cmakeConfigArg, b.cmakeBuildArg)
+		var insExe = NewInsExecutor(b.PkgHome, b.verbose, int32(b.nJobs), b.cmakeConfigArg, b.cmakeBuildArg)
 		if err := buildPkg(insExe, options.lists, options.Metas); err != nil {
 			return err
 		}

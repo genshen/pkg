@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // run the instruction
@@ -18,11 +19,12 @@ type InsExecutor struct {
 	verbose bool   // flag to show building logs when running a command
 }
 
-func NewInsExecutor(pkgHome string, verbose bool, cmakeConfigArg, cmakeBuildArg string) *InsExecutor {
+func NewInsExecutor(pkgHome string, verbose bool, nJobs int32, cmakeConfigArg, cmakeBuildArg string) *InsExecutor {
 	return &InsExecutor{
 		BaseInsExecutor: BaseInsExecutor{
 			cmakeConfigArg: cmakeConfigArg,
 			cmakeBuildArg:  cmakeBuildArg,
+			nJobs:          nJobs,
 		},
 		pkgHome: pkgHome,
 		verbose: verbose,
@@ -67,6 +69,7 @@ func (in *InsExecutor) InsRun(triple pkg.InsTriple, meta *pkg.PackageMeta) error
 	}
 	workDir := triple.Second // fixme path not contains space.
 	// remove old work dir files.
+	// fixme don't clean old work dir
 	if _, err := os.Stat(workDir); err != nil {
 		if !os.IsNotExist(err) {
 			return err
@@ -110,6 +113,15 @@ func (in *InsExecutor) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) err
 	if in.cmakeBuildArg != "" {
 		triple.Third = triple.Third + " " + in.cmakeBuildArg
 	}
+
+	// check -j argument in install subcommand
+	if strings.Contains(triple.Third, " -j ") || (strings.Contains(triple.Third, " --parallel ")) {
+		log.Warning("parallel jobs is already specified. Thus the argument `-j` in `install` subcommand is omitted.")
+	} else {
+		// generate n jobs.
+		triple.Third = fmt.Sprintf("%s -j %d", triple.Third, in.nJobs)
+	}
+
 	// create script
 	var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",
 		srcPath, packageCacheDir, pkg.GetPackagePkgPath(in.pkgHome, meta.PackageName), triple.Second)

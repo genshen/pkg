@@ -21,4 +21,5 @@ type InsInterface interface {
 type BaseInsExecutor struct {
 	cmakeConfigArg string
 	cmakeBuildArg  string
+	nJobs          int32 // N jobs for building
 }
