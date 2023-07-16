@@ -55,7 +55,7 @@ const (
 #     outer build command: <<.OuterBuildCommand>>
 <<if eq .SelfCMakeLib "AUTO_PKG">>
 if(NOT ${<<.TargetName>>_FOUND} OR ${<<.TargetName>>_FOUND} STREQUAL "")
-	find_package(<<.TargetName>> PATHS <<.PkgDir>>)
+	find_package(<<.TargetName>> PATHS <<.PkgDir>> NO_DEFAULT_PATH)
 endif()
 <<else>>
 	<<.SelfCMakeLib>> # inner cmake
