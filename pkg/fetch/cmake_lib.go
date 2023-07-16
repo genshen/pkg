@@ -142,7 +142,7 @@ func createPkgDepCmake(pkgHome string, rootDep *pkg.DependencyTree) error {
 }
 
 // generate/render cmake script of a package specified by depTree.
-//the result comes from its dependencies,
+// the result comes from its dependencies,
 // pkgHome: absolute path for pkg home.
 func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, writer io.Writer) error {
 	// skip master package by setting parameter skipRoota as true,
@@ -240,8 +240,7 @@ func renderCMakeBody(cmake cmakeDepData, packageEnv *pkg.PackageEnvs, writer io.
 	if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc != "" {
 		cmakeRenderTpl = CmakeToFileInnerBuild
 	}
-	if t, err := template.New("cmake").Delims("<<", ">>").Funcs(template.FuncMap{"cmake_opt": CmakeOpt}).Parse(cmakeRenderTpl)
-		err != nil {
+	if t, err := template.New("cmake").Delims("<<", ">>").Funcs(template.FuncMap{"cmake_opt": CmakeOpt}).Parse(cmakeRenderTpl); err != nil {
 		return err
 	} else {
 		if err := t.Execute(writer, cmake); err != nil {

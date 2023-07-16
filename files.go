@@ -33,7 +33,7 @@ func CheckDir(path string) error {
 	return nil
 }
 
-//// change path to relative path, replace PKG_DIR with relative path.
+//  change path to relative path, replace PKG_DIR with relative path.
 func RelativePath(base, target string) string {
 	//	// replace absolute path with relative path.
 	relPath := strings.TrimPrefix(target, base) // relative pkg path

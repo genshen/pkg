@@ -154,7 +154,7 @@ func (f *fetch) Run() error {
 		}).Info("saved dependencies tree to file.")
 	}
 
-	// dump all packages's dependencies.
+	// dump all packages' dependencies.
 	if file, err := os.Create(pkg.GetDepGraphPath(f.PkgHome)); err != nil {
 		return err
 	} else {
@@ -175,9 +175,10 @@ func (f *fetch) Run() error {
 	return nil
 }
 
-// install dependencies to a directory, installPath is the root path of sub-dependency(always be the project root).
+// fetchSubDependency installs dependencies to a directory.
+// installPath is the root path of sub-dependency(always be the project root).
 // pkgPath: the given package name/path (e.g github.com/google/googletest) from top level package.
-//pkgVendorSrcPath: path of source file directory in vendor.
+// pkgVendorSrcPath: path of source file directory in vendor.
 // todo circle detect
 func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgLock *map[string]string, depTree *pkg.DependencyTree) error {
 	// check pkg.yaml file in vendor directory

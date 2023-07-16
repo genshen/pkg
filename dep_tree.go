@@ -209,7 +209,7 @@ func (depTree *DependencyTree) ListDepsName() ([]string, error) {
 }
 
 // list all dependencies packages of a package by TraversalDeep.
-func (depTree *DependencyTree) ListDeps(skipRoot bool) ([] *DependencyTree, error) {
+func (depTree *DependencyTree) ListDeps(skipRoot bool) ([]*DependencyTree, error) {
 	// dump all its dependencies
 	pkgTraversalFlag := make(map[string]bool)
 	lists := make([]*DependencyTree, 0)
