@@ -84,19 +84,92 @@ func (ctx *PackageMeta) VendorSrcPath(base string) string {
 	return getPackageVendorSrcPath(base, ctx.PackageName, ctx.Version)
 }
 
-// marshal dependency tree content to a yaml file.
-func (depTree *DependencyTree) Dump(filename string) error {
-	metas := make(map[string]PackageMeta) // string is package name.
-
-	err := depTree.TraversalDeep(func(node *DependencyTree) error {
-		if _, ok := metas[node.Context.PackageName]; ok {
-			return nil // the package have already been added to map.
+func compareSliceSame(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, _ := range a {
+		if a[i] != b[i] {
+			return false
 		}
-		metas[node.Context.PackageName] = node.Context
+	}
+	return true
+}
+
+func (ctx *PackageMeta) HasDiff(other PackageMeta) bool {
+	if ctx.PackageName != other.PackageName || ctx.Version != other.Version ||
+		ctx.TargetName != other.TargetName || ctx.CMakeLib != other.CMakeLib ||
+		ctx.SelfCMakeLib != other.SelfCMakeLib {
+		return true
+	}
+	if !compareSliceSame(ctx.Builder, other.Builder) {
+		return true
+	}
+	if !compareSliceSame(ctx.Features, other.Features) {
+		return true
+	}
+	if !compareSliceSame(ctx.SelfBuild, other.SelfBuild) {
+		return true
+	}
+	return false
+}
+
+type PackageMetas []PackageMeta
+
+func (pm PackageMetas) Len() int {
+	return len(pm)
+}
+
+func (pm PackageMetas) Less(i, j int) bool {
+	return strings.Compare(pm[i].PackageName, pm[j].PackageName) == -1
+}
+
+func (pm PackageMetas) Swap(i, j int) {
+	pm[i], pm[j] = pm[j], pm[i]
+}
+
+// Dump marshal dependency tree content to a yaml file and process packages conflict.
+func (depTree *DependencyTree) Dump(filename string, onPackagesConflict func(packageName string, packs PackageMetas) (PackageMeta, error)) error {
+	// loop the dependency tree and group packages by package name.
+	// the key in map is package name.
+	originMetas := make(map[string]PackageMetas)
+	if err := depTree.TraversalDeep(func(node *DependencyTree) error {
+		originMetas[node.Context.PackageName] = append(originMetas[node.Context.PackageName], node.Context)
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return err
+	}
+
+	// process conflict packages.
+	metas := make(map[string]PackageMeta) // string is package name.
+	for packName, packList := range originMetas {
+		// process packages conflict of the same package name: compare and select one.
+		conflictPackages := make(PackageMetas, 0)
+		for _, pack := range packList {
+			// compare current package `pack` with the conflicted packages one by one.
+			// If possible (it is a new conflict), add current package to conflicted list.
+			isNewConflict := true
+			for _, conflictPack := range conflictPackages {
+				if !conflictPack.HasDiff(pack) {
+					isNewConflict = false
+					break
+				}
+			}
+			if isNewConflict {
+				conflictPackages = append(conflictPackages, pack)
+			}
+		}
+
+		if len(conflictPackages) == 1 {
+			metas[packName] = conflictPackages[0]
+		} else if len(conflictPackages) > 1 {
+			// process conflict
+			if p, err := onPackagesConflict(packName, conflictPackages); err != nil {
+				return err
+			} else {
+				metas[packName] = p
+			}
+		}
 	}
 
 	// buffer.WriteString()

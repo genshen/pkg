@@ -1,9 +1,11 @@
 package fetch
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
 	"github.com/genshen/pkg/conf"
@@ -13,6 +15,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"text/template"
 )
 
 var fetchCommand = &cmds.Command{
@@ -94,8 +97,56 @@ func (f *fetch) Run() error {
 		return err
 	}
 
+	// process package conflict
+	packageConflict := func(packageName string, packs pkg.PackageMetas) (pkg.PackageMeta, error) {
+		if len(packs) == 1 {
+			return packs[0], nil // quick return
+		}
+
+		helpBuff := bytes.Buffer{}
+
+		if tmpl, err := template.New("help").Parse(`Packages: NO. PackageName@Version#Targte
+{{range $i, $p := . }} {{$i}}: {{$p.PackageName}}@{{$p.Version}}#{{$p.TargetName}}
+    Features: [{{range $f := $p.Features }} {{$f}} {{end}}]
+    Builder: [{{range $b := $p.Builder }} {{$b}}; {{end}}]
+    SelfBuild: [{{range $s := $p.SelfBuild }} {{$s}}; {{end}}]
+    CMakeLib: {{$p.CMakeLib}}
+    SelfCMakeLib: {{$p.SelfCMakeLib}}
+{{end}}`); err != nil {
+			return pkg.PackageMeta{}, err
+		} else {
+			if err := tmpl.Execute(&helpBuff, packs); err != nil {
+				return pkg.PackageMeta{}, err
+			}
+		}
+
+		var qs = []*survey.Question{
+			{
+				Name: "packages",
+				Prompt: &survey.Input{
+					Message: fmt.Sprintf("Package `%s` conflict, select one:", packageName),
+					Help:    helpBuff.String(),
+				},
+			},
+		}
+		answers := struct {
+			Selection int `survey:"packages"`
+		}{}
+
+		// perform the questions
+		err := survey.Ask(qs, &answers)
+		if err != nil {
+			return pkg.PackageMeta{}, err
+		}
+		if answers.Selection >= 0 && answers.Selection < len(packs) {
+			return packs[answers.Selection], nil
+		} else {
+			return pkg.PackageMeta{}, errors.New("conflict selection out of range")
+		}
+	}
+
 	// dump dependency tree to file system
-	if err := f.DepTree.Dump(pkg.GetPkgSumPath(f.PkgHome)); err != nil { //fixme
+	if err := f.DepTree.Dump(pkg.GetPkgSumPath(f.PkgHome), packageConflict); err != nil { //fixme
 		return err
 	} else {
 		log.WithFields(log.Fields{
@@ -245,19 +296,6 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globa
 		}
 		// set save directory path
 		status := pkg.DlStatusEmpty
-
-		// version conflict and deciding
-		if ver, ok := (*pkgLock)[context.PackageName]; ok {
-			// use the matched version package
-			context.Version = ver
-			log.WithFields(log.Fields{
-				"pkg":     key,
-				"version": ver,
-			}).Trace("package matches another version.")
-		} else {
-			// save this version
-			(*pkgLock)[context.PackageName] = context.Version
-		}
 
 		// src path in (global) user home
 		srcDes := context.HomeCacheSrcPath()
