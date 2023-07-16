@@ -3,7 +3,6 @@ package conf
 import (
 	"github.com/genshen/pkg"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -33,7 +32,7 @@ func ParseConfig(projectHome string) (*PkgConfig, error) {
 				return nil, err
 			}
 		} else { // file exists
-			if confData, err := ioutil.ReadFile(configFile); err != nil {
+			if confData, err := os.ReadFile(configFile); err != nil {
 				return nil, err
 			} else {
 				// auth map will be merged

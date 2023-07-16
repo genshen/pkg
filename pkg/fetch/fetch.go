@@ -12,7 +12,7 @@ import (
 	"github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -189,7 +189,7 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 		}
 	} else { // pkg.yaml exists.
 		defer pkgYamlFile.Close()
-		if bytes, err := ioutil.ReadAll(pkgYamlFile); err != nil { // read file contents
+		if bytes, err := io.ReadAll(pkgYamlFile); err != nil { // read file contents
 			return err
 		} else {
 			pkgYaml := pkg.YamlPkg{}
