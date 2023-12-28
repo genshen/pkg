@@ -15,11 +15,12 @@ import (
 
 type cmakeDepData struct {
 	pkg.PackageMeta
-	SrcDir            string
-	PkgDir            string
-	DepsDir           string // cmake binary dir if it is added by add_subdirectory
-	InnerBuildCommand []string
-	OuterBuildCommand []string
+	SrcDir             string
+	PkgDir             string
+	DepsDir            string // cmake binary dir if it is added by add_subdirectory
+	FindPackageOptions string // options for finding package in `find_package(foo PATH ..)`
+	InnerBuildCommand  []string
+	OuterBuildCommand  []string
 }
 
 type cmakeDepHeaderData struct {
@@ -55,7 +56,7 @@ const (
 #     outer build command: <<.OuterBuildCommand>>
 <<if eq .SelfCMakeLib "AUTO_PKG">>
 if(NOT ${<<.TargetName>>_FOUND} OR ${<<.TargetName>>_FOUND} STREQUAL "")
-	find_package(<<.TargetName>> PATHS <<.PkgDir>>)
+	find_package(<<.TargetName>> PATHS <<.PkgDir>> <<.FindPackageOptions>>)
 endif()
 <<else>>
 	<<.SelfCMakeLib>> # inner cmake
@@ -87,7 +88,7 @@ endif()
 
 // pkgHome is always pkg root.
 // write cmake script for all direct and indirect dependencies packages.
-func createPkgDepCmake(pkgHome string, rootDep *pkg.DependencyTree) error {
+func createPkgDepCmake(pkgHome string, rootDep *pkg.DependencyTree, findPackageOptions string) error {
 	depsList, err := rootDep.ListDeps(false)
 	if err != nil {
 		return err
@@ -115,7 +116,7 @@ func createPkgDepCmake(pkgHome string, rootDep *pkg.DependencyTree) error {
 
 				// compute and render body template.
 				// (write cmake include and find_package script of all dependency packages)
-				if err := cmakeLib(depTree, pkgHome, bufWriter); err != nil {
+				if err := cmakeLib(depTree, pkgHome, findPackageOptions, bufWriter); err != nil {
 					return err
 				}
 				if err := bufWriter.Flush(); err != nil {
@@ -144,7 +145,7 @@ func createPkgDepCmake(pkgHome string, rootDep *pkg.DependencyTree) error {
 // generate/render cmake script of a package specified by depTree.
 // the result comes from its dependencies,
 // pkgHome: absolute path for pkg home.
-func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, writer io.Writer) error {
+func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, findPackageOptions string, writer io.Writer) error {
 	// skip master package by setting parameter skipRoota as true,
 	// do not generate cmake include and find_package script for the master package itself lib.
 	depsList, err := depTree.ListDeps(true) // list all dependencies
@@ -167,9 +168,10 @@ func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, writer io.Writer) err
 				CMakeLib:     dep.Context.CMakeLib,
 				Features:     dep.Context.Features,
 			},
-			SrcDir:  src,
-			DepsDir: pkg.GetPackageDepsPath(basePath, dep.Context.PackageName),
-			PkgDir:  pkg.GetPackagePkgPath(basePath, dep.Context.PackageName),
+			SrcDir:             src,
+			DepsDir:            pkg.GetPackageDepsPath(basePath, dep.Context.PackageName),
+			PkgDir:             pkg.GetPackagePkgPath(basePath, dep.Context.PackageName),
+			FindPackageOptions: findPackageOptions,
 		}
 		// copy slice, don't modify the original data.
 		toFile.OuterBuildCommand = make([]string, len(dep.Context.Builder))
