@@ -7,7 +7,7 @@ package pkg
 import (
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -209,7 +209,7 @@ func (depTree *DependencyTree) ListDepsName() ([]string, error) {
 }
 
 // list all dependencies packages of a package by TraversalDeep.
-func (depTree *DependencyTree) ListDeps(skipRoot bool) ([] *DependencyTree, error) {
+func (depTree *DependencyTree) ListDeps(skipRoot bool) ([]*DependencyTree, error) {
 	// dump all its dependencies
 	pkgTraversalFlag := make(map[string]bool)
 	lists := make([]*DependencyTree, 0)
@@ -238,7 +238,7 @@ func DepTreeRecover(metas *map[string]PackageMeta, filename string) error {
 		return err
 	} else {
 		defer depFile.Close()
-		if bytes, err := ioutil.ReadAll(depFile); err != nil { // read file contents
+		if bytes, err := io.ReadAll(depFile); err != nil { // read file contents
 			return err
 		} else {
 			if err := yaml.Unmarshal(bytes, metas); err != nil { // unmarshal yaml to struct

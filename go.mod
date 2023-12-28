@@ -1,6 +1,6 @@
 module github.com/genshen/pkg
 
-go 1.13
+go 1.16
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7

@@ -19,7 +19,7 @@ func main() {
 	cmds.SetProgramName("pkg")
 	if err := cmds.Parse(); err != nil {
 		if err == flag.ErrHelp {
-		    return
+			return
 		}
 		// skip error in sub command parsing, because the error has been printed.
 		if !errors.Is(err, &cmds.SubCommandParseError{}) {

@@ -48,7 +48,7 @@ func buildPkg(inst InsInterface, lists []string, metas map[string]pkg.PackageMet
 	return nil
 }
 
-// run instruction.
+// dispatch instruction to run.
 func RunIns(inst InsInterface, meta *pkg.PackageMeta, envs *pkg.PackageEnvs, ins string) error {
 	if expandedIns, err := pkg.ExpandEnv(ins, envs); err != nil {
 		return err
