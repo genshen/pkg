@@ -39,6 +39,7 @@ func init() {
 	fetchCommand.FlagSet = fs
 	//fetchCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
 	fetchCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+pkg.PkgFileName)
+	fetchCommand.FlagSet.StringVar(&f.CMakeFindPackageOption, "cmake-find-package-arg", "NO_DEFAULT_PATH", "global options for find_package when generating file pkg.dep.cmake")
 	// todo make pkgHome abs path anyway.
 	fetchCommand.FlagSet.Usage = fetchCommand.Usage // use default usage provided by cmds.Command.
 	fetchCommand.Runner = &f
@@ -46,10 +47,12 @@ func init() {
 }
 
 type fetch struct {
-	PkgHome       string // the absolute path of root 'pkg.yaml' form command path.
-	DepTree       pkg.DependencyTree
-	Auth          map[string]conf.Auth
-	GlobalReplace map[string]string
+	PkgHome                string // the absolute path of root 'pkg.yaml' form command path.
+	CMakeFindPackageOption string // global find_package option, default is "NO_DEFAULT_PATH".
+	MirrorConfPath         string // the file path of repo mirror file.
+	DepTree                pkg.DependencyTree
+	Auth                   map[string]conf.Auth
+	GlobalReplace          map[string]string
 }
 
 func (f *fetch) PreRun() error {
@@ -167,7 +170,7 @@ func (f *fetch) Run() error {
 	// generating cmake script to include dependency libs.
 	// the generated cmake file is stored at where pkg command runs.
 	// for project package, its srcHome equals to PkgHome.
-	if err := createPkgDepCmake(f.PkgHome, &f.DepTree); err != nil {
+	if err := createPkgDepCmake(f.PkgHome, &f.DepTree, f.CMakeFindPackageOption); err != nil {
 		return err
 	}
 
