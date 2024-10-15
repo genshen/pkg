@@ -11,6 +11,7 @@ import (
 	_ "github.com/genshen/pkg/pkg/import"
 	_ "github.com/genshen/pkg/pkg/init"
 	_ "github.com/genshen/pkg/pkg/install"
+	_ "github.com/genshen/pkg/pkg/list"
 	_ "github.com/genshen/pkg/pkg/version"
 	log "github.com/sirupsen/logrus"
 )
