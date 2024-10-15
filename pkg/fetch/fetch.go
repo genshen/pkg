@@ -253,8 +253,18 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 					}
 				}
 			}
-			// download file based packages
+			// download file based packages without recursion.
 			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, filesPkgsToInterface(pkgYaml.Deps.FilesPackages)); err != nil {
+				return err
+			} else {
+				// copy downloaded packages to vendor directory
+				if err := f.copyPkgToVendor(deps); err != nil {
+					return err
+				}
+				depTree.Dependencies = append(depTree.Dependencies, deps...)
+			}
+			// download archive based packages without recursion.
+			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, archivePkgsToInterface(pkgYaml.Deps.ArchivePackages)); err != nil {
 				return err
 			} else {
 				// copy downloaded packages to vendor directory
@@ -291,7 +301,7 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globa
 	if packages == nil {
 		return deps, nil
 	}
-	// download git src, and add it to build tree.
+	// download git, files and archive src, and add it to build tree.
 	for key, p := range packages {
 		var context pkg.PackageMeta
 		// before fetching package, set version and package name/path
