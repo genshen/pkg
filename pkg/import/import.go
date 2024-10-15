@@ -1,12 +1,13 @@
 package _import
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
-	"github.com/mholt/archiver/v3"
+	"github.com/mholt/archiver/v4"
 	cp "github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -87,12 +88,23 @@ func (i *_import) Run() error {
 		}
 	}()
 
-	tar := archiver.Tar{
-		OverwriteExisting: true,
-		//ImplicitTopLevelFolder: true,
-		MkdirAll: true,
+	format := archiver.CompressedArchive{
+		Compression: archiver.Gz{},
+		Archival:    archiver.Tar{},
 	}
-	if err := tar.Unarchive(i.input, importCache); err != nil {
+
+	handle := func(ctx context.Context, f archiver.File) error {
+		pkg.Unzip(f, importCache) // extract to importCache dir
+		return nil
+	}
+
+	inp, err := os.Open(i.input)
+	if err != nil {
+		return err
+	}
+	defer inp.Close()
+
+	if err := format.Extract(context.Background(), inp, nil, handle); err != nil {
 		return err
 	}
 	// mv sum file

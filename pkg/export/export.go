@@ -1,15 +1,17 @@
 package export
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
-	"github.com/mholt/archiver/v3"
+	"github.com/mholt/archiver/v4"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -50,7 +52,7 @@ func (e *export) PreRun() error {
 		return errors.New("flag home is required")
 	}
 	if e.output == "" {
-		e.output = pkg.VendorName + "-" + time.Now().Format("20060102-150405.999999") + ".tar"
+		e.output = pkg.VendorName + "-" + time.Now().Format("20060102-150405.999999") + ".tar.gz"
 	}
 	// file path check
 	pkgFilePath := filepath.Join(e.home, pkg.PkgFileName)
@@ -76,11 +78,28 @@ func (e *export) PreRun() error {
 }
 
 func (e *export) Run() error {
-	tar := archiver.Tar{}
+	format := archiver.CompressedArchive{
+		Compression: archiver.Gz{},
+		Archival:    archiver.Tar{},
+	}
 
-	tarFiles := [3]string{pkg.GetPkgSumPath(e.home), pkg.GetDepGraphPath(e.home), pkg.GetPkgSrcPath(e.home)}
+	tarFiles, err := archiver.FilesFromDisk(nil, map[string]string{
+		pkg.GetPkgSumPath(e.home):   strings.TrimPrefix(pkg.GetPkgSumPath(""), pkg.VendorName),
+		pkg.GetDepGraphPath(e.home): strings.TrimPrefix(pkg.GetDepGraphPath(""), pkg.VendorName),
+		pkg.GetPkgSrcPath(e.home):   strings.TrimPrefix(pkg.GetPkgSrcPath(""), pkg.VendorName),
+	})
+	if err != nil {
+		return err
+	}
 
-	if err := tar.Archive(tarFiles[:], e.output); err != nil {
+	// create the output file we'll write to
+	out, err := os.Create(e.output)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if err := format.Archive(context.Background(), out, tarFiles); err != nil {
 		return err
 	}
 	log.Info(fmt.Sprintf("export succeeded, file is saved at %s.", e.output))
