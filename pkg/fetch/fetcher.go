@@ -16,6 +16,7 @@ type PackageFetcher interface {
 
 type YamlGitPkgFetcher pkg.YamlGitPackage
 type YamlFilesPkgFetcher pkg.YamlFilesPackage
+type YamlArchivePkgFetcher pkg.YamlArchivePackage
 
 // fetcher interface implementation for git package
 // pkgPath:
@@ -85,6 +86,24 @@ func (files *YamlFilesPkgFetcher) fetch(auth map[string]conf.Auth, localReplace,
 	return nil
 }
 
+// fetcher interface implementation for archive package
+func (archive *YamlArchivePkgFetcher) setPackageMeta(pkgPath string, meta *pkg.PackageMeta) error {
+	meta.PackageName = pkgPath
+	meta.TargetName = ""
+	meta.Version = "latest"
+	meta.CMakeLib = archive.CMakeLib
+	meta.Builder = archive.Build[:]
+	return nil
+}
+
+func (archive *YamlArchivePkgFetcher) fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]string, srcDes string, meta pkg.PackageMeta) error {
+	if err := archiveSrc(archive.Type, srcDes, meta.PackageName, archive.Path); err != nil {
+		_ = os.RemoveAll(srcDes)
+		return err
+	}
+	return nil
+}
+
 func gitPkgsToInterface(pkgYaml map[string]pkg.YamlGitPackage) map[string]PackageFetcher {
 	fetchers := make(map[string]PackageFetcher)
 	for k, p := range pkgYaml {
@@ -99,6 +118,15 @@ func filesPkgsToInterface(pkgYaml map[string]pkg.YamlFilesPackage) map[string]Pa
 	for k, p := range pkgYaml {
 		temp := p
 		fetchers[k] = (*YamlFilesPkgFetcher)(&temp)
+	}
+	return fetchers
+}
+
+func archivePkgsToInterface(pkgYaml map[string]pkg.YamlArchivePackage) map[string]PackageFetcher {
+	fetchers := make(map[string]PackageFetcher)
+	for k, p := range pkgYaml {
+		temp := p
+		fetchers[k] = (*YamlArchivePkgFetcher)(&temp)
 	}
 	return fetchers
 }

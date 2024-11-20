@@ -37,8 +37,11 @@ type YamlFilesPackage struct {
 	Files       map[string]string `yaml:"files"`
 }
 
+const DefaultArchiveFormatType = "zip"
+
 type YamlArchivePackage struct {
 	YamlPackage `yaml:",inline"`
+	Type        string `yaml:"type"` // archive type, support: zip, tar.gz, tar.bz2, tar. Default: zip.
 }
 
 // for pkg file version 1.

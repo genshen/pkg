@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/genshen/pkg"
@@ -9,6 +10,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/storer"
+	"github.com/mholt/archiver/v4"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -55,7 +57,7 @@ func filesSrc(srcDes, packageName, baseUrl string, files map[string]string) erro
 
 // download archived package source code to destination directory, usually its 'vendor/src/PackageName/'.
 // srcPath is the src location of this package (vendor/src/packageName).
-func archiveSrc(srcPath string, packageName string, path string) error {
+func archiveSrc(archiveType string, srcPath string, packageName string, remoteUrl string) error {
 	if err := os.MkdirAll(srcPath, 0744); err != nil {
 		return err
 	}
@@ -65,7 +67,7 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 		"storage": srcPath,
 	}).Info("downloading dependency package.")
 
-	res, err := http.Get(path)
+	res, err := http.Get(remoteUrl)
 	if err != nil {
 		return err // todo fallback
 	}
@@ -73,8 +75,15 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 		return errors.New("http response code is not ok (200)")
 	}
 
+	if archiveType == "" {
+		archiveType = pkg.DefaultArchiveFormatType
+		log.WithFields(log.Fields{
+			"pkg": packageName,
+		}).Info("set archive package format type to default type: %s.", archiveType)
+	}
+
 	// save file.
-	zipName := filepath.Join(srcPath, packageName+".zip")
+	zipName := filepath.Join(srcPath, packageName+"."+archiveType)
 	if fp, err := os.Create(zipName); err != nil { //todo create dir if file includes father dirs.
 		return err // todo fallback
 	} else {
@@ -91,9 +100,36 @@ func archiveSrc(srcPath string, packageName string, path string) error {
 		"pkg":     zipName,
 		"storage": srcPath,
 	}).Println("extracting package.")
-	err = pkg.Unzip(zipName, srcPath)
-	if err != nil {
+
+	// open archive file
+	if f, err := os.Open(zipName); err != nil {
 		return err
+	} else {
+		defer f.Close()
+
+		ac := archiver.CompressedArchive{}
+		if archiveType == "tar.bz2" {
+			ac.Compression = archiver.Bz2{}
+			ac.Archival = archiver.Tar{}
+		} else if archiveType == "tar.gz" {
+			ac.Compression = archiver.Gz{}
+			ac.Archival = archiver.Tar{}
+		} else if archiveType == "zip" {
+			ac.Archival = archiver.Zip{}
+		} else {
+			return errors.New("unsupported type error")
+		}
+
+		handle := func(ctx context.Context, file archiver.File) error {
+			if err := pkg.Unzip(file, srcPath); err != nil {
+				return err
+			}
+			return nil
+		}
+
+		if err := ac.Extract(context.Background(), f, nil, handle); err != nil {
+			return err
+		}
 	}
 
 	log.WithFields(log.Fields{
