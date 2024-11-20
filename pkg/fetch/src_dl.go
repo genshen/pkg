@@ -10,6 +10,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/storer"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/mholt/archiver/v4"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -17,7 +18,43 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+// getProxyOptionFromEnvVars returns proxy options from environment variables
+// by checking `https_proxy` and `http_proxy`.
+// todo: proxy username and password support.
+// todo: check and use socks proxy.
+func getProxyOptionFromEnvVars(reqUrl string) string {
+	proxyUrl := ""
+	if strings.HasPrefix(reqUrl, "https") {
+		// case-sensitive
+		proxyUrl = os.Getenv("https_proxy")
+		if proxyUrl == "" {
+			proxyUrl = os.Getenv("HTTPS_PROXY")
+		}
+	} else if strings.HasPrefix(reqUrl, "http") {
+		proxyUrl = os.Getenv("http_proxy")
+		if proxyUrl == "" {
+			proxyUrl = os.Getenv("HTTP_PROXY")
+		}
+	}
+	return proxyUrl
+}
+
+func getHttpClientProxy(reqUrl string) *url.URL {
+	proxyUrl := getProxyOptionFromEnvVars(reqUrl)
+	if proxyUrl == "" {
+		return nil
+	}
+
+	urli := url.URL{}
+	if proxy, err := urli.Parse(proxyUrl); err != nil {
+		return nil
+	} else {
+		return proxy
+	}
+}
 
 // download source code packages.
 // files: just download files specified by map files.
@@ -27,13 +64,25 @@ func filesSrc(srcDes, packageName, baseUrl string, files map[string]string) erro
 		return err
 	}
 
+	// setup proxy if possible
+	proxyUrl := getHttpClientProxy(baseUrl)
+	if proxyUrl != nil {
+		log.WithFields(log.Fields{"pkg": packageName, "proxy": proxyUrl}).
+			Println("use proxy for package downloading.")
+	}
+	client := http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(proxyUrl),
+		},
+	}
+
 	// download files:
 	for k, file := range files {
 		log.WithFields(log.Fields{
 			"pkg":     packageName,
 			"storage": filepath.Join(srcDes, file),
 		}).Info("downloading dependencies.")
-		res, err := http.Get(pkg.UrlJoin(baseUrl, k))
+		res, err := client.Get(pkg.UrlJoin(baseUrl, k))
 		if err != nil {
 			return err // todo rollback
 		}
@@ -67,7 +116,19 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 		"storage": srcPath,
 	}).Info("downloading dependency package.")
 
-	res, err := http.Get(remoteUrl)
+	// setup proxy if possible
+	proxyUrl := getHttpClientProxy(remoteUrl)
+	if proxyUrl != nil {
+		log.WithFields(log.Fields{"pkg": packageName, "proxy": proxyUrl}).
+			Println("use proxy for package downloading.")
+	}
+	client := http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(proxyUrl),
+		},
+	}
+
+	res, err := client.Get(remoteUrl)
 	if err != nil {
 		return err // todo fallback
 	}
@@ -161,6 +222,13 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 		}
 	}
 
+	// setup proxy if possible
+	proxyUrl := getProxyOptionFromEnvVars(repoUrl)
+	if proxyUrl != "" {
+		log.WithFields(log.Fields{"pkg": packagePath, "proxy": proxyUrl}).
+			Println("use proxy for package downloading.")
+	}
+
 	// init ReferenceName using branch and tag.
 	var checkoutOpt git.CheckoutOptions
 	// clone repository.
@@ -169,6 +237,9 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 		Progress: os.Stdout,
 		//ReferenceName: referenceName, // specific branch or tag.
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		ProxyOptions: transport.ProxyOptions{
+			URL: proxyUrl,
+		},
 	}); err != nil {
 		log.Println("Error here", err)
 		return err
