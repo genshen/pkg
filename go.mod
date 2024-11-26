@@ -6,7 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/genshen/cmds v0.0.0-20200505065256-d4c52690e15b
 	github.com/go-git/go-git/v5 v5.11.0
-	github.com/otiai10/copy v1.7.0
+	github.com/otiai10/copy v1.14.0
 	github.com/sirupsen/logrus v1.9.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -53,6 +53,7 @@ require (
 	golang.org/x/crypto v0.16.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/term v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
