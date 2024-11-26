@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
-	"github.com/mholt/archiver/v4"
+	"github.com/mholt/archives"
 	cp "github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -88,12 +88,12 @@ func (i *_import) Run() error {
 		}
 	}()
 
-	format := archiver.CompressedArchive{
-		Compression: archiver.Gz{},
-		Archival:    archiver.Tar{},
+	format := archives.CompressedArchive{
+		Compression: archives.Gz{},
+		Archival:    archives.Tar{},
 	}
 
-	handle := func(ctx context.Context, f archiver.File) error {
+	handle := func(ctx context.Context, f archives.FileInfo) error {
 		pkg.Unzip(f, importCache) // extract to importCache dir
 		return nil
 	}
@@ -104,7 +104,7 @@ func (i *_import) Run() error {
 	}
 	defer inp.Close()
 
-	if err := format.Extract(context.Background(), inp, nil, handle); err != nil {
+	if err := format.Extract(context.Background(), inp, handle); err != nil {
 		return err
 	}
 	// mv sum file

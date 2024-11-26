@@ -11,7 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/mholt/archiver/v4"
+	"github.com/mholt/archives"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -168,27 +168,27 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 	} else {
 		defer f.Close()
 
-		ac := archiver.CompressedArchive{}
+		ac := archives.CompressedArchive{}
 		if archiveType == "tar.bz2" {
-			ac.Compression = archiver.Bz2{}
-			ac.Archival = archiver.Tar{}
+			ac.Compression = archives.Bz2{}
+			ac.Archival = archives.Tar{}
 		} else if archiveType == "tar.gz" {
-			ac.Compression = archiver.Gz{}
-			ac.Archival = archiver.Tar{}
+			ac.Compression = archives.Gz{}
+			ac.Archival = archives.Tar{}
 		} else if archiveType == "zip" {
-			ac.Archival = archiver.Zip{}
+			ac.Archival = archives.Zip{}
 		} else {
 			return errors.New("unsupported type error")
 		}
 
-		handle := func(ctx context.Context, file archiver.File) error {
+		handle := func(ctx context.Context, file archives.FileInfo) error {
 			if err := pkg.Unzip(file, srcPath); err != nil {
 				return err
 			}
 			return nil
 		}
 
-		if err := ac.Extract(context.Background(), f, nil, handle); err != nil {
+		if err := ac.Extract(context.Background(), f, handle); err != nil {
 			return err
 		}
 	}
