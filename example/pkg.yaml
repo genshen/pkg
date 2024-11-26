@@ -7,6 +7,14 @@ args:
 
 pkg: "github.com/genshen/pkg"
 
+
+features:
+ default:
+   needs: [pot_hip]
+ pot_hip:
+   deps: ["github.com/misa-md/potential"]
+   needs: []
+
 dependencies:
   packages:
     github.com/google/googletest: {version: release-1.8.0, target: GTest}

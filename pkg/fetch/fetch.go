@@ -15,6 +15,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -40,6 +41,7 @@ func init() {
 	//fetchCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
 	fetchCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+pkg.PkgFileName)
 	fetchCommand.FlagSet.StringVar(&f.CMakeFindPackageOption, "cmake-find-package-arg", "NO_DEFAULT_PATH", "global options for find_package when generating file pkg.dep.cmake")
+	fetchCommand.FlagSet.StringVar(&f.FeaturesOption, "features", DefaultFeatureName, "Comma separated list of features to activate. e.g. --features=foo,bar")
 	// todo make pkgHome abs path anyway.
 	fetchCommand.FlagSet.Usage = fetchCommand.Usage // use default usage provided by cmds.Command.
 	fetchCommand.Runner = &f
@@ -47,9 +49,11 @@ func init() {
 }
 
 type fetch struct {
-	PkgHome                string // the absolute path of root 'pkg.yaml' form command path.
-	CMakeFindPackageOption string // global find_package option, default is "NO_DEFAULT_PATH".
-	MirrorConfPath         string // the file path of repo mirror file.
+	PkgHome                string   // the absolute path of root 'pkg.yaml' form command path.
+	CMakeFindPackageOption string   // global find_package option, default is "NO_DEFAULT_PATH".
+	FeaturesOption         string   // cli `feature` string
+	FeatureList            []string // feature list parsed from cli option.
+	MirrorConfPath         string   // the file path of repo mirror file.
 	DepTree                pkg.DependencyTree
 	Auth                   map[string]conf.Auth
 	GlobalReplace          map[string]string
@@ -82,6 +86,12 @@ func (f *fetch) PreRun() error {
 		f.GlobalReplace = config.GitReplace
 	}
 
+	// parse feature list
+	if f.FeaturesOption != "" {
+		log.Info("Following features are enabled: ", f.FeaturesOption)
+		f.FeatureList = strings.Split(f.FeaturesOption, ",")
+	}
+
 	return nil
 	// check .vendor and some related directory, if not exists, create it.
 	// return pkg.CheckVendorPath(pkgFilePath)
@@ -96,7 +106,7 @@ func (f *fetch) Run() error {
 	// fetch packages to user home directory.
 	log.Info("packages will be downloaded to directory ", pkgSrcDir)
 	pkgLock := make(map[string]string)
-	if err := f.fetchSubDependency(pkg.RootPKG, f.PkgHome, &pkgLock, &f.DepTree); err != nil {
+	if err := f.fetchSubDependency(pkg.RootPKG, f.PkgHome, f.FeatureList, &pkgLock, &f.DepTree); err != nil {
 		return err
 	}
 
@@ -181,9 +191,10 @@ func (f *fetch) Run() error {
 // fetchSubDependency installs dependencies to a directory.
 // installPath is the root path of sub-dependency(always be the project root).
 // pkgPath: the given package name/path (e.g github.com/google/googletest) from top level package.
+// activeFeatList: a list of features to be active.
 // pkgVendorSrcPath: path of source file directory in vendor.
 // todo circle detect
-func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgLock *map[string]string, depTree *pkg.DependencyTree) error {
+func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, activeFeatList []string, pkgLock *map[string]string, depTree *pkg.DependencyTree) error {
 	// check pkg.yaml file in vendor directory
 	if pkgYamlFile, err := os.Open(filepath.Join(pkgVendorSrcPath, pkg.PkgFileName)); err != nil {
 		if os.IsNotExist(err) {
@@ -237,26 +248,33 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 				pkgYaml.GitReplace = make(map[string]string)
 			}
 
+			// process features: filter active features and get the optional packages for the features.
+			err, activateFeatPkgs := activeFeatureOptionalPackages(pkgYaml.Features, activeFeatList)
+			if err != nil {
+				return err
+			}
+
 			// download git based packages source of direct dependencies.
-			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, gitPkgsToInterface(pkgYaml.Deps.GitPackages)); err != nil {
+			if deps, err := f.dlPackagesDepSrc(pkgLock, activateFeatPkgs, pkgYaml.GitReplace, f.GlobalReplace, gitPkgsToInterface(pkgYaml.Deps.GitPackages)); err != nil {
 				return err
 			} else {
 				// add and install sub dependencies for this package.
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 				for _, dep := range deps {
-					if err := f.fetchSubDependency(dep.Context.PackageName, dep.Context.VendorSrcPath(f.PkgHome), pkgLock, dep); err != nil {
+					// todo: currently, we disable features for sub dependencies.
+					if err := f.fetchSubDependency(dep.Context.PackageName, dep.Context.VendorSrcPath(f.PkgHome), nil, pkgLock, dep); err != nil {
 						return err
 					}
 				}
 			}
 			// download file based packages without recursion.
-			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, filesPkgsToInterface(pkgYaml.Deps.FilesPackages)); err != nil {
+			if deps, err := f.dlPackagesDepSrc(pkgLock, activateFeatPkgs, pkgYaml.GitReplace, f.GlobalReplace, filesPkgsToInterface(pkgYaml.Deps.FilesPackages)); err != nil {
 				return err
 			} else {
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 			}
 			// download archive based packages without recursion.
-			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, archivePkgsToInterface(pkgYaml.Deps.ArchivePackages)); err != nil {
+			if deps, err := f.dlPackagesDepSrc(pkgLock, activateFeatPkgs, pkgYaml.GitReplace, f.GlobalReplace, archivePkgsToInterface(pkgYaml.Deps.ArchivePackages)); err != nil {
 				return err
 			} else {
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
@@ -269,7 +287,7 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: project root direction.
-func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globalReplace map[string]string,
+func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []string, localReplace, globalReplace map[string]string,
 	packages map[string]PackageFetcher) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
 	// todo check install.
@@ -285,7 +303,7 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globa
 			return nil, err
 		}
 
-		if context.Optional { // skip optional packages. We do not add to dependency records.
+		if context.Optional && !checkOptionalPackageFeatureMatches(context, featPkgList) { // skip optional packages. We do not add to dependency records.
 			log.WithFields(log.Fields{"pkg": context.PackageName}).Info("optional package.")
 			continue
 		}
