@@ -284,6 +284,12 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globa
 		if err := p.setPackageMeta(key, &context); err != nil {
 			return nil, err
 		}
+
+		if context.Optional { // skip optional packages. We do not add to dependency records.
+			log.WithFields(log.Fields{"pkg": context.PackageName}).Info("optional package.")
+			continue
+		}
+
 		// set save directory path
 		status := pkg.DlStatusEmpty
 

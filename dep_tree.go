@@ -31,6 +31,7 @@ type PackageMeta struct {
 	PackageName string   `yaml:"pkg"`    // package name (usually it is a path)
 	TargetName  string   `yaml:"target"` // cmake package name
 	Features    []string `yaml:"features"`
+	Optional    bool     `yaml:"optional"` // if true: this package is optional
 	//	SrcPath      string   `yaml:"-"`
 	Version      string   `yaml:"version"`
 	Builder      []string `yaml:"builder"`        // outer builder (lib used by others, specified by others pkg)

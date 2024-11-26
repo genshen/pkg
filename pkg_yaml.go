@@ -23,7 +23,10 @@ type YamlDependencies struct {
 	ArchivePackages map[string]YamlArchivePackage `yaml:"archives"`
 }
 
-type YamlPackage V1Package
+type YamlPackage struct {
+	V1Package `yaml:",inline"`
+	Optional  bool `yaml:"optional"` // if true: this package is optional
+}
 
 type YamlGitPackage struct {
 	YamlPackage `yaml:",inline"`
@@ -106,11 +109,14 @@ func (v1 *V1Packages) MigrateToV2(d *YamlDependencies) error {
 
 				d.GitPackages[name] = YamlGitPackage{
 					YamlPackage: YamlPackage{
+						Optional: false,
+						V1Package: V1Package{
 						Path:             gitPkg.Path,
 						Override:         gitPkg.Override,
 						Build:            gitPkg.Build,
 						CMakeLib:         gitPkg.CMakeLib,
 						CMakeLibOverride: gitPkg.CMakeLibOverride,
+						},
 					},
 					Version: version,
 					Target:  name,
@@ -124,11 +130,14 @@ func (v1 *V1Packages) MigrateToV2(d *YamlDependencies) error {
 			if _, ok := d.FilesPackages[name]; !ok {
 				d.FilesPackages[name] = YamlFilesPackage{
 					YamlPackage: YamlPackage{
+						Optional: false,
+						V1Package: V1Package{
 						Path:             filePkg.Path,
 						Override:         filePkg.Override,
 						Build:            filePkg.Build,
 						CMakeLib:         filePkg.CMakeLib,
 						CMakeLibOverride: filePkg.CMakeLibOverride,
+						},
 					},
 					Files: filePkg.Files,
 				}

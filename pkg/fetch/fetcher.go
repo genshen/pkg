@@ -24,6 +24,7 @@ func (git *YamlGitPkgFetcher) setPackageMeta(pkgPath string, meta *pkg.PackageMe
 	meta.Version = git.Version
 	meta.TargetName = git.Target
 	meta.Features = git.Features
+	meta.Optional = git.Optional
 	meta.CMakeLib = git.CMakeLib
 	meta.Builder = git.Build[:]
 	if meta.CMakeLib == "" && len(meta.Builder) == 0 {
@@ -73,6 +74,7 @@ func (files *YamlFilesPkgFetcher) setPackageMeta(pkgPath string, meta *pkg.Packa
 	meta.PackageName = pkgPath
 	meta.TargetName = ""
 	meta.Version = "latest"
+	meta.Optional = files.Optional
 	meta.CMakeLib = files.CMakeLib
 	meta.Builder = files.Build[:]
 	return nil
@@ -91,6 +93,7 @@ func (archive *YamlArchivePkgFetcher) setPackageMeta(pkgPath string, meta *pkg.P
 	meta.PackageName = pkgPath
 	meta.TargetName = ""
 	meta.Version = "latest"
+	meta.Optional = archive.Optional
 	meta.CMakeLib = archive.CMakeLib
 	meta.Builder = archive.Build[:]
 	return nil
