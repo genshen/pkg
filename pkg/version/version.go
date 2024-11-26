@@ -4,9 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/genshen/cmds"
+	"github.com/genshen/pkg"
 )
-
-const VERSION = "0.5.0"
 
 var versionCommand = &cmds.Command{
 	Name:        "version",
@@ -36,7 +35,7 @@ func (v *version) PreRun() error {
 }
 
 func (v *version) Run() error {
-	fmt.Printf("version\t %s.\n", VERSION)
+	fmt.Printf("version\t %s\n", pkg.VERSION)
 	fmt.Println("Author\t genshenchu@gmail.com")
 	fmt.Println("Url\t https://github.com/genshen/pkg")
 	return nil
