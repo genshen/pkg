@@ -241,10 +241,6 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, gitPkgsToInterface(pkgYaml.Deps.GitPackages)); err != nil {
 				return err
 			} else {
-				// copy downloaded packages to vendor directory
-				if err := f.copyPkgToVendor(deps); err != nil {
-					return err
-				}
 				// add and install sub dependencies for this package.
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 				for _, dep := range deps {
@@ -257,20 +253,12 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, filesPkgsToInterface(pkgYaml.Deps.FilesPackages)); err != nil {
 				return err
 			} else {
-				// copy downloaded packages to vendor directory
-				if err := f.copyPkgToVendor(deps); err != nil {
-					return err
-				}
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 			}
 			// download archive based packages without recursion.
 			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, archivePkgsToInterface(pkgYaml.Deps.ArchivePackages)); err != nil {
 				return err
 			} else {
-				// copy downloaded packages to vendor directory
-				if err := f.copyPkgToVendor(deps); err != nil {
-					return err
-				}
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 			}
 		}
@@ -284,19 +272,7 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globalReplace map[string]string,
 	packages map[string]PackageFetcher) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
-	// todo packages have dependencies.
 	// todo check install.
-
-	// download archive src package.
-	//for key, archPkg := range packages.ArchivePackages {
-	//	if err := archiveSrc(pkgHome, key, archPkg.Path); err != nil {
-	//		// todo rollback, clean src.
-	//		return nil, err
-	//	} else {
-	//		// if source code downloading succeed, then compile and install it;
-	//		// besides, you can also use source code in your project (e.g. use cmake package in cmake project).
-	//	}
-	//}
 
 	if packages == nil {
 		return deps, nil
@@ -315,30 +291,32 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globa
 		srcDes := context.HomeCacheSrcPath()
 		vendorSrcDes := context.VendorSrcPath(f.PkgHome)
 
-		// check target directory to save src files.
-		_, errHomeSrc := os.Stat(srcDes)
-		_, errVendorSrc := os.Stat(vendorSrcDes)
-		// check home cache dir and vendor dir
-		if os.IsNotExist(errHomeSrc) && os.IsNotExist(errVendorSrc) {
-			log.WithFields(log.Fields{
-				"pkg":     context.PackageName,
-				"storage": srcDes,
-			}).Info("downloading dependencies.")
+		err, strategy := determinePackageCacheStrategy(context, f.PkgHome)
+		if err != nil {
+			return nil, err
+		}
+
+		switch strategy {
+		case CacheStrategyDownloadFromRemote:
+			log.WithFields(log.Fields{"pkg": context.PackageName, "storage": srcDes}).Info("downloading dependencies.")
 			if err := p.fetch(f.Auth, localReplace, globalReplace, srcDes, context); err != nil {
 				return nil, err
 			}
 			status = pkg.DlStatusOk
-		} else {
-			if errHomeSrc != nil && !os.IsNotExist(errHomeSrc) {
-				return nil, errHomeSrc
-			} else if errVendorSrc != nil && !os.IsNotExist(errVendorSrc) {
-				return nil, errVendorSrc
+		case CacheStrategyCopyFromGlobalCache:
+			log.WithFields(log.Fields{"pkg": key, "src_path": srcDes}).Info("skipped fetching package, because it already exists.")
+			// copy downloaded packages from global cache to vendor directory
+			if err := copy.Copy(srcDes, vendorSrcDes); err != nil {
+				return nil, err
 			}
 			status = pkg.DlStatusSkip
-			log.WithFields(log.Fields{
-				"pkg":      key,
-				"src_path": srcDes,
-			}).Info("skipped fetching package, because it already exists.")
+		case CacheStrategyUserLocalVendor:
+			log.WithFields(log.Fields{"pkg": key, "src_path": vendorSrcDes}).Info("skipped fetching package, because it already exists.")
+			status = pkg.DlStatusSkip
+		case CacheStrategySkip:
+			// not handled: skip with error.
+		default:
+			return nil, fmt.Errorf("unknown package cache strategy: %d", strategy)
 		}
 
 		// add to dependency tree.
@@ -349,30 +327,4 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globa
 		deps = append(deps, &dep)
 	}
 	return deps, nil
-}
-
-// cope packages specified by array deps from user home directory to vendor/src directory
-func (f *fetch) copyPkgToVendor(deps []*pkg.DependencyTree) error {
-	//log.Info("copy dependencies from cache to vendor.")
-	for _, dep := range deps {
-		pkgCachePath := dep.Context.HomeCacheSrcPath()
-		pkgVendorPath := dep.Context.VendorSrcPath(f.PkgHome)
-
-		// copy only when global cache exist
-		if _, err := os.Stat(pkgCachePath); os.IsNotExist(err) { // cache not exist
-			if _, err := os.Stat(pkgVendorPath); err != nil {
-				if os.IsNotExist(err) { // vendor not exist
-					return fmt.Errorf("cache and vendor path of package `%s` does not exists", dep.Context.PackageName)
-				}
-				return err
-			} // else: vendor exist
-		} else if err != nil {
-			return err
-		} else {
-			if err := copy.Copy(pkgCachePath, pkgVendorPath); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
