@@ -5,16 +5,22 @@ import (
 	"runtime"
 )
 
-// for pkg yaml file parsing
+// YamlPkg is for pkg yaml file parsing
 type YamlPkg struct {
-	Version    int                 `yaml:"version"`
-	Args       map[string]string   `yaml:"args"`
-	GitReplace map[string]string   `yaml:"git-replace"`
-	PkgName    string              `yaml:"pkg"`
-	Packages   V1Packages          `yaml:"packages"` // for pkg file version 1
-	Deps       YamlDependencies    `yaml:"dependencies"`
-	Build      map[string][]string `yaml:"build"`
-	CMakeLib   string              `yaml:"cmake_lib"`
+	Version    int                     `yaml:"version"`
+	Args       map[string]string       `yaml:"args"`
+	GitReplace map[string]string       `yaml:"git-replace"`
+	PkgName    string                  `yaml:"pkg"`
+	Packages   V1Packages              `yaml:"packages"` // for pkg file version 1
+	Deps       YamlDependencies        `yaml:"dependencies"`
+	Features   map[string]YamlFeatures `yaml:"features"`
+	Build      map[string][]string     `yaml:"build"`
+	CMakeLib   string                  `yaml:"cmake_lib"`
+}
+
+type YamlFeatures struct {
+	Needs []string `yaml:"needs"` // other features this feature depending on.
+	Deps  []string `yaml:"deps"`  // the dependency package for this feature
 }
 
 type YamlDependencies struct {
@@ -23,7 +29,10 @@ type YamlDependencies struct {
 	ArchivePackages map[string]YamlArchivePackage `yaml:"archives"`
 }
 
-type YamlPackage V1Package
+type YamlPackage struct {
+	V1Package `yaml:",inline"`
+	Optional  bool `yaml:"optional"` // if true: this package is optional
+}
 
 type YamlGitPackage struct {
 	YamlPackage `yaml:",inline"`
@@ -106,11 +115,14 @@ func (v1 *V1Packages) MigrateToV2(d *YamlDependencies) error {
 
 				d.GitPackages[name] = YamlGitPackage{
 					YamlPackage: YamlPackage{
-						Path:             gitPkg.Path,
-						Override:         gitPkg.Override,
-						Build:            gitPkg.Build,
-						CMakeLib:         gitPkg.CMakeLib,
-						CMakeLibOverride: gitPkg.CMakeLibOverride,
+						Optional: false,
+						V1Package: V1Package{
+							Path:             gitPkg.Path,
+							Override:         gitPkg.Override,
+							Build:            gitPkg.Build,
+							CMakeLib:         gitPkg.CMakeLib,
+							CMakeLibOverride: gitPkg.CMakeLibOverride,
+						},
 					},
 					Version: version,
 					Target:  name,
@@ -124,11 +136,14 @@ func (v1 *V1Packages) MigrateToV2(d *YamlDependencies) error {
 			if _, ok := d.FilesPackages[name]; !ok {
 				d.FilesPackages[name] = YamlFilesPackage{
 					YamlPackage: YamlPackage{
-						Path:             filePkg.Path,
-						Override:         filePkg.Override,
-						Build:            filePkg.Build,
-						CMakeLib:         filePkg.CMakeLib,
-						CMakeLibOverride: filePkg.CMakeLibOverride,
+						Optional: false,
+						V1Package: V1Package{
+							Path:             filePkg.Path,
+							Override:         filePkg.Override,
+							Build:            filePkg.Build,
+							CMakeLib:         filePkg.CMakeLib,
+							CMakeLibOverride: filePkg.CMakeLibOverride,
+						},
 					},
 					Files: filePkg.Files,
 				}

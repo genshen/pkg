@@ -7,9 +7,18 @@ args:
 
 pkg: "github.com/genshen/pkg"
 
+
+features:
+ default:
+   needs: [pot_hip]
+ pot_hip:
+   deps: ["github.com/misa-md/potential"]
+   needs: []
+
 dependencies:
   packages:
     github.com/google/googletest: {version: release-1.8.0, target: GTest}
+    github.com/misa-md/potential: { version: dev, target: pot, optional: true }
     github.com/fmtlib/fmt@4.1.0@fmt:
       build:
         - RUN {{.CACHE}} cmake {{.SRC_DIR}} -DCMAKE_INSTALL_PREFIX={{.PKG_DIR}}; make -j {{.CORES}}; make install
@@ -32,6 +41,11 @@ dependencies:
         cpptoml.h: toml.hpp
       build:
         - CP toml.hpp {{.INCLUDE}}/toml.hpp
+  archives:
+    elfutils:
+      path: https://sourceware.org/elfutils/ftp/0.171/elfutils-0.171.tar.bz2
+      type: "tar.bz2"
+      optional: true
 
 build:
   fallback:

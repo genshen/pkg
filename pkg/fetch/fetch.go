@@ -15,6 +15,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -40,6 +41,7 @@ func init() {
 	//fetchCommand.FlagSet.BoolVar(&absRoot, "abspath", false, "use absolute path, not relative path")
 	fetchCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+pkg.PkgFileName)
 	fetchCommand.FlagSet.StringVar(&f.CMakeFindPackageOption, "cmake-find-package-arg", "NO_DEFAULT_PATH", "global options for find_package when generating file pkg.dep.cmake")
+	fetchCommand.FlagSet.StringVar(&f.FeaturesOption, "features", DefaultFeatureName, "Comma separated list of features to activate. e.g. --features=foo,bar")
 	// todo make pkgHome abs path anyway.
 	fetchCommand.FlagSet.Usage = fetchCommand.Usage // use default usage provided by cmds.Command.
 	fetchCommand.Runner = &f
@@ -47,9 +49,11 @@ func init() {
 }
 
 type fetch struct {
-	PkgHome                string // the absolute path of root 'pkg.yaml' form command path.
-	CMakeFindPackageOption string // global find_package option, default is "NO_DEFAULT_PATH".
-	MirrorConfPath         string // the file path of repo mirror file.
+	PkgHome                string   // the absolute path of root 'pkg.yaml' form command path.
+	CMakeFindPackageOption string   // global find_package option, default is "NO_DEFAULT_PATH".
+	FeaturesOption         string   // cli `feature` string
+	FeatureList            []string // feature list parsed from cli option.
+	MirrorConfPath         string   // the file path of repo mirror file.
 	DepTree                pkg.DependencyTree
 	Auth                   map[string]conf.Auth
 	GlobalReplace          map[string]string
@@ -82,6 +86,12 @@ func (f *fetch) PreRun() error {
 		f.GlobalReplace = config.GitReplace
 	}
 
+	// parse feature list
+	if f.FeaturesOption != "" {
+		log.Info("Following features are enabled: ", f.FeaturesOption)
+		f.FeatureList = strings.Split(f.FeaturesOption, ",")
+	}
+
 	return nil
 	// check .vendor and some related directory, if not exists, create it.
 	// return pkg.CheckVendorPath(pkgFilePath)
@@ -96,7 +106,7 @@ func (f *fetch) Run() error {
 	// fetch packages to user home directory.
 	log.Info("packages will be downloaded to directory ", pkgSrcDir)
 	pkgLock := make(map[string]string)
-	if err := f.fetchSubDependency(pkg.RootPKG, f.PkgHome, &pkgLock, &f.DepTree); err != nil {
+	if err := f.fetchSubDependency(pkg.RootPKG, f.PkgHome, f.FeatureList, &pkgLock, &f.DepTree); err != nil {
 		return err
 	}
 
@@ -181,9 +191,10 @@ func (f *fetch) Run() error {
 // fetchSubDependency installs dependencies to a directory.
 // installPath is the root path of sub-dependency(always be the project root).
 // pkgPath: the given package name/path (e.g github.com/google/googletest) from top level package.
+// activeFeatList: a list of features to be active.
 // pkgVendorSrcPath: path of source file directory in vendor.
 // todo circle detect
-func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgLock *map[string]string, depTree *pkg.DependencyTree) error {
+func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, activeFeatList []string, pkgLock *map[string]string, depTree *pkg.DependencyTree) error {
 	// check pkg.yaml file in vendor directory
 	if pkgYamlFile, err := os.Open(filepath.Join(pkgVendorSrcPath, pkg.PkgFileName)); err != nil {
 		if os.IsNotExist(err) {
@@ -237,40 +248,35 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 				pkgYaml.GitReplace = make(map[string]string)
 			}
 
+			// process features: filter active features and get the optional packages for the features.
+			err, activateFeatPkgs := activeFeatureOptionalPackages(pkgYaml.Features, activeFeatList)
+			if err != nil {
+				return err
+			}
+
 			// download git based packages source of direct dependencies.
-			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, gitPkgsToInterface(pkgYaml.Deps.GitPackages)); err != nil {
+			if deps, err := f.dlPackagesDepSrc(pkgLock, activateFeatPkgs, pkgYaml.GitReplace, f.GlobalReplace, gitPkgsToInterface(pkgYaml.Deps.GitPackages)); err != nil {
 				return err
 			} else {
-				// copy downloaded packages to vendor directory
-				if err := f.copyPkgToVendor(deps); err != nil {
-					return err
-				}
 				// add and install sub dependencies for this package.
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 				for _, dep := range deps {
-					if err := f.fetchSubDependency(dep.Context.PackageName, dep.Context.VendorSrcPath(f.PkgHome), pkgLock, dep); err != nil {
+					// todo: currently, we disable features for sub dependencies.
+					if err := f.fetchSubDependency(dep.Context.PackageName, dep.Context.VendorSrcPath(f.PkgHome), nil, pkgLock, dep); err != nil {
 						return err
 					}
 				}
 			}
 			// download file based packages without recursion.
-			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, filesPkgsToInterface(pkgYaml.Deps.FilesPackages)); err != nil {
+			if deps, err := f.dlPackagesDepSrc(pkgLock, activateFeatPkgs, pkgYaml.GitReplace, f.GlobalReplace, filesPkgsToInterface(pkgYaml.Deps.FilesPackages)); err != nil {
 				return err
 			} else {
-				// copy downloaded packages to vendor directory
-				if err := f.copyPkgToVendor(deps); err != nil {
-					return err
-				}
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 			}
 			// download archive based packages without recursion.
-			if deps, err := f.dlPackagesDepSrc(pkgLock, pkgYaml.GitReplace, f.GlobalReplace, archivePkgsToInterface(pkgYaml.Deps.ArchivePackages)); err != nil {
+			if deps, err := f.dlPackagesDepSrc(pkgLock, activateFeatPkgs, pkgYaml.GitReplace, f.GlobalReplace, archivePkgsToInterface(pkgYaml.Deps.ArchivePackages)); err != nil {
 				return err
 			} else {
-				// copy downloaded packages to vendor directory
-				if err := f.copyPkgToVendor(deps); err != nil {
-					return err
-				}
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 			}
 		}
@@ -281,22 +287,10 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, pkgL
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: project root direction.
-func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globalReplace map[string]string,
+func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []string, localReplace, globalReplace map[string]string,
 	packages map[string]PackageFetcher) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
-	// todo packages have dependencies.
 	// todo check install.
-
-	// download archive src package.
-	//for key, archPkg := range packages.ArchivePackages {
-	//	if err := archiveSrc(pkgHome, key, archPkg.Path); err != nil {
-	//		// todo rollback, clean src.
-	//		return nil, err
-	//	} else {
-	//		// if source code downloading succeed, then compile and install it;
-	//		// besides, you can also use source code in your project (e.g. use cmake package in cmake project).
-	//	}
-	//}
 
 	if packages == nil {
 		return deps, nil
@@ -308,6 +302,12 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globa
 		if err := p.setPackageMeta(key, &context); err != nil {
 			return nil, err
 		}
+
+		if context.Optional && !checkOptionalPackageFeatureMatches(context, featPkgList) { // skip optional packages. We do not add to dependency records.
+			log.WithFields(log.Fields{"pkg": context.PackageName}).Info("optional package.")
+			continue
+		}
+
 		// set save directory path
 		status := pkg.DlStatusEmpty
 
@@ -315,30 +315,32 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globa
 		srcDes := context.HomeCacheSrcPath()
 		vendorSrcDes := context.VendorSrcPath(f.PkgHome)
 
-		// check target directory to save src files.
-		_, errHomeSrc := os.Stat(srcDes)
-		_, errVendorSrc := os.Stat(vendorSrcDes)
-		// check home cache dir and vendor dir
-		if os.IsNotExist(errHomeSrc) && os.IsNotExist(errVendorSrc) {
-			log.WithFields(log.Fields{
-				"pkg":     context.PackageName,
-				"storage": srcDes,
-			}).Info("downloading dependencies.")
+		err, strategy := determinePackageCacheStrategy(context, f.PkgHome)
+		if err != nil {
+			return nil, err
+		}
+
+		switch strategy {
+		case CacheStrategyDownloadFromRemote:
+			log.WithFields(log.Fields{"pkg": context.PackageName, "storage": srcDes}).Info("downloading dependencies.")
 			if err := p.fetch(f.Auth, localReplace, globalReplace, srcDes, context); err != nil {
 				return nil, err
 			}
 			status = pkg.DlStatusOk
-		} else {
-			if errHomeSrc != nil && !os.IsNotExist(errHomeSrc) {
-				return nil, errHomeSrc
-			} else if errVendorSrc != nil && !os.IsNotExist(errVendorSrc) {
-				return nil, errVendorSrc
+		case CacheStrategyCopyFromGlobalCache:
+			log.WithFields(log.Fields{"pkg": key, "src_path": srcDes}).Info("skipped fetching package, because it already exists.")
+			// copy downloaded packages from global cache to vendor directory
+			if err := copy.Copy(srcDes, vendorSrcDes); err != nil {
+				return nil, err
 			}
 			status = pkg.DlStatusSkip
-			log.WithFields(log.Fields{
-				"pkg":      key,
-				"src_path": srcDes,
-			}).Info("skipped fetching package, because it already exists.")
+		case CacheStrategyUserLocalVendor:
+			log.WithFields(log.Fields{"pkg": key, "src_path": vendorSrcDes}).Info("skipped fetching package, because it already exists.")
+			status = pkg.DlStatusSkip
+		case CacheStrategySkip:
+			// not handled: skip with error.
+		default:
+			return nil, fmt.Errorf("unknown package cache strategy: %d", strategy)
 		}
 
 		// add to dependency tree.
@@ -349,30 +351,4 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, localReplace, globa
 		deps = append(deps, &dep)
 	}
 	return deps, nil
-}
-
-// cope packages specified by array deps from user home directory to vendor/src directory
-func (f *fetch) copyPkgToVendor(deps []*pkg.DependencyTree) error {
-	//log.Info("copy dependencies from cache to vendor.")
-	for _, dep := range deps {
-		pkgCachePath := dep.Context.HomeCacheSrcPath()
-		pkgVendorPath := dep.Context.VendorSrcPath(f.PkgHome)
-
-		// copy only when global cache exist
-		if _, err := os.Stat(pkgCachePath); os.IsNotExist(err) { // cache not exist
-			if _, err := os.Stat(pkgVendorPath); err != nil {
-				if os.IsNotExist(err) { // vendor not exist
-					return fmt.Errorf("cache and vendor path of package `%s` does not exists", dep.Context.PackageName)
-				}
-				return err
-			} // else: vendor exist
-		} else if err != nil {
-			return err
-		} else {
-			if err := copy.Copy(pkgCachePath, pkgVendorPath); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
