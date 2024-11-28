@@ -5,13 +5,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mholt/archiver/v4"
+	"github.com/mholt/archives"
 )
 
 // FROM https://golangcode.com/unzip-files-in-go/
 // Unzip will decompress a zip archive, moving all files and folders
 // within the zip file (parameter 1) to an output directory (parameter 2).
-func Unzip(f archiver.File, dest string) error {
+func Unzip(f archives.FileInfo, dest string) error {
 	rc, err := f.Open()
 	if err != nil {
 		return err

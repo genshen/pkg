@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
-	"github.com/mholt/archiver/v4"
+	"github.com/mholt/archives"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
@@ -78,12 +78,12 @@ func (e *export) PreRun() error {
 }
 
 func (e *export) Run() error {
-	format := archiver.CompressedArchive{
-		Compression: archiver.Gz{},
-		Archival:    archiver.Tar{},
+	format := archives.CompressedArchive{
+		Compression: archives.Gz{},
+		Archival:    archives.Tar{},
 	}
 
-	tarFiles, err := archiver.FilesFromDisk(nil, map[string]string{
+	tarFiles, err := archives.FilesFromDisk(nil, &archives.FromDiskOptions{}, map[string]string{
 		pkg.GetPkgSumPath(e.home):   strings.TrimPrefix(pkg.GetPkgSumPath(""), pkg.VendorName),
 		pkg.GetDepGraphPath(e.home): strings.TrimPrefix(pkg.GetDepGraphPath(""), pkg.VendorName),
 		pkg.GetPkgSrcPath(e.home):   strings.TrimPrefix(pkg.GetPkgSrcPath(""), pkg.VendorName),
