@@ -83,7 +83,7 @@ func (e *export) Run() error {
 		Archival:    archives.Tar{},
 	}
 
-	tarFiles, err := archives.FilesFromDisk(nil, &archives.FromDiskOptions{}, map[string]string{
+	tarFiles, err := archives.FilesFromDisk(context.Background(), &archives.FromDiskOptions{}, map[string]string{
 		pkg.GetPkgSumPath(e.home):   strings.TrimPrefix(pkg.GetPkgSumPath(""), pkg.VendorName),
 		pkg.GetDepGraphPath(e.home): strings.TrimPrefix(pkg.GetDepGraphPath(""), pkg.VendorName),
 		pkg.GetPkgSrcPath(e.home):   strings.TrimPrefix(pkg.GetPkgSrcPath(""), pkg.VendorName),
