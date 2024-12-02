@@ -53,7 +53,11 @@ func ParseIns(insStr string) (ins InsTriple, err error) {
 	}
 
 	// parse third
-	ins.Third = strings.Trim(ins.Third, `"`)
 	ins.Third = strings.TrimSpace(ins.Third)
+	if strings.HasPrefix(ins.Third, `"`) && strings.HasSuffix(ins.Third, `"`) {
+		// it does not process instructions like `echo "hello"`
+		ins.Third = strings.Trim(ins.Third, `"`)
+	}
+
 	return ins, err
 }
