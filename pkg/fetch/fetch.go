@@ -10,6 +10,7 @@ import (
 	"github.com/genshen/pkg"
 	"github.com/genshen/pkg/conf"
 	"github.com/otiai10/copy"
+	"github.com/rogpeppe/go-internal/semver"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io"
@@ -246,6 +247,19 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, acti
 			// initial empty local replace list
 			if pkgYaml.GitReplace == nil {
 				pkgYaml.GitReplace = make(map[string]string)
+			}
+
+			// compare min pkg version in yaml file
+			if pkgYaml.MinPkgVersion != "" {
+				if !semver.IsValid(pkgYaml.MinPkgVersion) {
+					return fmt.Errorf("min package version %s is not valid", pkgYaml.MinPkgVersion)
+				} else if semver.Compare(pkgYaml.MinPkgVersion, pkg.VERSION) > 0 {
+					return fmt.Errorf("pkg version %s is too old, require min pkg version is %s", pkg.VERSION, pkgYaml.MinPkgVersion)
+				}
+			}
+
+			if pkgYaml.FormatVersion != pkg.FORMAT_VERSION {
+				return fmt.Errorf("package format version does not match, require format version is %d", pkg.FORMAT_VERSION)
 			}
 
 			// process features: filter active features and get the optional packages for the features.

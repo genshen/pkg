@@ -52,7 +52,7 @@ func (i *initialization) Run() error {
 		return err
 	} else {
 		var pkgExample pkg.YamlPkg
-		pkgExample.Version = 2
+		pkgExample.FormatVersion = pkg.FORMAT_VERSION
 		pkgExample.PkgName = "github.com/foo/bar"
 		pkgExample.Args = make(map[string]string)
 		if pkgExampleBytes, err := yaml.Marshal(&pkgExample); err != nil {

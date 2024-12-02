@@ -8,6 +8,7 @@ require (
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/mholt/archives v0.0.0-20241123153623-b85dd98f4298
 	github.com/otiai10/copy v1.14.0
+	github.com/rogpeppe/go-internal v1.11.0
 	github.com/sirupsen/logrus v1.9.3
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -50,7 +51,7 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
 	golang.org/x/crypto v0.23.0 // indirect
-	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sync v0.9.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect

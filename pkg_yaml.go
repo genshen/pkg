@@ -7,15 +7,16 @@ import (
 
 // YamlPkg is for pkg yaml file parsing
 type YamlPkg struct {
-	Version    int                     `yaml:"version"`
-	Args       map[string]string       `yaml:"args"`
-	GitReplace map[string]string       `yaml:"git-replace"`
-	PkgName    string                  `yaml:"pkg"`
-	Packages   V1Packages              `yaml:"packages"` // for pkg file version 1
-	Deps       YamlDependencies        `yaml:"dependencies"`
-	Features   map[string]YamlFeatures `yaml:"features"`
-	Build      map[string][]string     `yaml:"build"`
-	CMakeLib   string                  `yaml:"cmake_lib"`
+	FormatVersion int                     `yaml:"version"`
+	MinPkgVersion string                  `yaml:"min_pkg_version"`
+	Args          map[string]string       `yaml:"args"`
+	GitReplace    map[string]string       `yaml:"git-replace"`
+	PkgName       string                  `yaml:"pkg"`
+	Packages      V1Packages              `yaml:"packages"` // for pkg file version 1
+	Deps          YamlDependencies        `yaml:"dependencies"`
+	Features      map[string]YamlFeatures `yaml:"features"`
+	Build         map[string][]string     `yaml:"build"`
+	CMakeLib      string                  `yaml:"cmake_lib"`
 }
 
 type YamlFeatures struct {

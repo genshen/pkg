@@ -2,6 +2,7 @@
 # author: genshen <genshenchu@gmail.com>
 
 version: 2
+min_pkg_version: v0.6.0
 
 args:
 
