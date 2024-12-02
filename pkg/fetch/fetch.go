@@ -340,6 +340,10 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []strin
 			if err := p.fetch(f.Auth, localReplace, globalReplace, srcDes, context); err != nil {
 				return nil, err
 			}
+			// copy package from system global cache to project's vendor/src
+			if err := copy.Copy(srcDes, vendorSrcDes); err != nil {
+				return nil, err
+			}
 			status = pkg.DlStatusOk
 		case CacheStrategyCopyFromGlobalCache:
 			log.WithFields(log.Fields{"pkg": key, "src_path": srcDes}).Info("skipped fetching package, because it already exists.")
