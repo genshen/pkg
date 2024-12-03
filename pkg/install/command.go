@@ -68,17 +68,6 @@ func (in *InsExecutor) InsRun(triple pkg.InsTriple, meta *pkg.PackageMeta) error
 		return errors.New("RUN instruction must be a triple")
 	}
 	workDir := triple.Second // fixme path not contains space.
-	// remove old work dir files.
-	// fixme don't clean old work dir
-	if _, err := os.Stat(workDir); err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-	} else {
-		if err := os.RemoveAll(workDir); err != nil {
-			return err
-		}
-	}
 
 	// make dirs
 	if err := os.MkdirAll(workDir, 0744); err != nil {
