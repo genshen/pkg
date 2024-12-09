@@ -1,4 +1,79 @@
 
+<a name="v0.6.0"></a>
+## [v0.6.0](https://github.com/genshen/pkg/compare/v0.6.0..v0.5.0)
+
+> 2024-12-09
+
+### Build
+
+* **deps:** bump github.com/go-git/go-git/v5 from 5.5.2 to 5.11.0
+* **go-module:** bump dependency packages to latest version
+* **go-module:** rename github.com/mholt/archiver/v4 to github.com/mholt/archives
+* **go-module:** bump package github.com/otiai10/copy to v1.14.0
+* **go-module:** bump to github.com/mholt/archiver/v4
+* **go-module:** bump min go version in go.mod to 1.19
+* **go-module:** bump version of dependency packages
+
+### Ci
+
+* **github-action:** bump action upload-artifact, download-artifact to v4 and action-gh-release to v2
+* **github-action:** bump go version in github-action to 1.22
+
+### Docs
+
+* **changelog:** update changelog for v0.6.0
+
+### Feat
+
+* migrate to go 1.16+: change package io/ioutil => io or os
+* **fetch:** min pkg version constraint in yaml file and check it while fetching
+* **fetch:** support `features`: group optional packages into `features` and enables/disable them
+* **fetch:** add `optional` flag to package for skipping a package
+* **fetch:** support to check and use system proxy to fetch file/archive/git packages
+* **fetch:** add more types support for fetching archive package
+* **fetch:** make find package options as a cli flag
+* **fetch:** add option `NO_DEFAULT_PATH` for find_package when generating file pkg.dep.cmake
+* **fetch:** let user select a package version when package conflict occurs
+* **install:** add `-j` argument to allow parallel building
+* **list:** add sub-command `list` for listing all packages information
+* **version:** bump pkg version to 0.6.0 and file format version to 3
+
+### Fix
+
+* **export:** fix the nil go context passed to `archives.FilesFromDisk` for exporting package archive
+* **fetch:** add the missing package copying after remote package downloading finished
+* **fetch:** fix incorrect branch and return value in cache determining algorithm
+* **install:** keep the work dir before running instruction
+* **install:** fix incorrect trim of quotation mark in install instruction
+
+### Merge
+
+* Merge pull request [#25](https://github.com/genshen/pkg/issues/25/) from genshen/bump-go-packages
+* Merge pull request [#21](https://github.com/genshen/pkg/issues/21/) from genshen/ci-bump-artifact-actions-and-release-action
+* Merge pull request [#22](https://github.com/genshen/pkg/issues/22/) from genshen/feature-archive-package-more-types-support
+* Merge pull request [#23](https://github.com/genshen/pkg/issues/23/) from genshen/feature-fetch-via-system-proxy
+* **export:** Merge pull request [#27](https://github.com/genshen/pkg/issues/27/) from genshen/fix-export-gen-archive-context-nil
+* **fetch:** Merge pull request [#26](https://github.com/genshen/pkg/issues/26/) from genshen/feature-min-pkg-version-check
+* **fetch:** Merge pull request [#24](https://github.com/genshen/pkg/issues/24/) from genshen/feature-fetch-by-features
+* **fetch:** Merge pull request [#28](https://github.com/genshen/pkg/issues/28/) from genshen/fix-fetch-package-cache-strategy
+* **fetch:** Merge pull request [#14](https://github.com/genshen/pkg/issues/14/) from genshen/feature-find-package-options
+* **fetch:** Merge pull request [#11](https://github.com/genshen/pkg/issues/11/) from genshen/feature-fetch-check-packages-conflict
+* **go-module:** Merge pull request [#15](https://github.com/genshen/pkg/issues/15/) from genshen/bump-go-1.19+
+* **go-module:** Merge pull request [#12](https://github.com/genshen/pkg/issues/12/) from genshen/dependabot/go_modules/github.com/go-git/go-git/v5-5.11.0
+* **install:** Merge pull request [#30](https://github.com/genshen/pkg/issues/30/) from genshen/fix-rm-workdir-before-instruction-run
+* **install:** Merge pull request [#29](https://github.com/genshen/pkg/issues/29/) from genshen/fix-install-instruction-trim
+* **install:** Merge pull request [#10](https://github.com/genshen/pkg/issues/10/) from genshen/feature-install-n-jobs
+* **list:** Merge pull request [#20](https://github.com/genshen/pkg/issues/20/) from genshen/feature-package-list-subcommand
+
+### Refactor
+
+* **fetch:** refactor the code of checking for global and vendor package cache
+
+### Style
+
+* code and comments formatting
+
+
 <a name="v0.5.0"></a>
 ## [v0.5.0](https://github.com/genshen/pkg/compare/v0.5.0..v0.4.1)
 
@@ -59,10 +134,10 @@
 ### Feat
 
 * **env:** add env PKG_FIND_PATH (vendor/deps/[@pkg](https://github.com/pkg/)(inner build) or vendor/pkg/[@pkg](https://github.com/pkg/)(outer build))
-* **fetch:** add support for package fallback/default builder commands
 * **fetch:** add support of rendering `file pkg.dep.cmake` when AUTO_PKG is used
 * **fetch:** add `features` into package metadata in yaml config file
 * **fetch:** add parsing of AUTO_PKG instruction if builder commands and cmake lib are not specified
+* **fetch:** add support for package fallback/default builder commands
 * **install:** handle AUTO_PKG instruction of `pkg build` command: convert to CMAKE instruction
 * **version:** update version to 0.4.0
 
@@ -99,12 +174,12 @@
 
 ### Feat
 
-* **fetch:** redesign pkg.yaml file format, use path as package's name
 * **fetch:** global cache strategy and global->vendor copy strategy
 * **fetch:** only fetch package from remote if package doesn't exist in global cache and vendor src
 * **fetch:** add feature of checkout to a branch or commit hash when cloning a git package
 * **fetch:** add compatibility for fetching packages from pkg.yaml file version 1
 * **fetch:** support parsing version and target from package path and package description
+* **fetch:** redesign pkg.yaml file format, use path as package's name
 * **install:** add cmake option and build option for CMAKE instruction
 * **install:** remove cache directory before running cmake in CMAKE instruction
 * **install:** add install instruction parser
@@ -155,10 +230,10 @@ pkg.yaml file format is changed and use path as package's name.
 * **config:** read authentication config from project config file and user home config file
 * **export:** export dependencies packages in user home to tar file
 * **fetch:** use yaml format as sum file
-* **fetch:** fetch dependencies to user home dir, not vendor dir.
 * **fetch:** remove srcPath in sum file and get srcPath by calling GetPackageHomeSrcPath
 * **fetch:** remove package source files when threr is a fetching error
 * **fetch:** decide a version when there are multiple versions for a package
+* **fetch:** fetch dependencies to user home dir, not vendor dir.
 * **import:** import packages to '.pkg' directory in user home from tar file
 * **install:** use env 'PKG_VENDOR_PATH' to find installed libs in project vendor dir while building
 * **version:** update version to 0.3.2
