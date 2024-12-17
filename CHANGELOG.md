@@ -2,7 +2,7 @@
 <a name="v0.6.0"></a>
 ## [v0.6.0](https://github.com/genshen/pkg/compare/v0.6.0..v0.5.0)
 
-> 2024-12-09
+> 2024-12-17
 
 ### Build
 
@@ -36,6 +36,7 @@
 * **fetch:** let user select a package version when package conflict occurs
 * **install:** add `-j` argument to allow parallel building
 * **list:** add sub-command `list` for listing all packages information
+* **version:** print git commit id and build time when running `pkg version`
 * **version:** bump pkg version to 0.6.0 and file format version to 3
 
 ### Fix
@@ -45,6 +46,7 @@
 * **fetch:** fix incorrect branch and return value in cache determining algorithm
 * **install:** keep the work dir before running instruction
 * **install:** fix incorrect trim of quotation mark in install instruction
+* **version:** keep format version checking backward compatibility to version 1
 
 ### Merge
 
@@ -64,6 +66,8 @@
 * **install:** Merge pull request [#29](https://github.com/genshen/pkg/issues/29/) from genshen/fix-install-instruction-trim
 * **install:** Merge pull request [#10](https://github.com/genshen/pkg/issues/10/) from genshen/feature-install-n-jobs
 * **list:** Merge pull request [#20](https://github.com/genshen/pkg/issues/20/) from genshen/feature-package-list-subcommand
+* **version:** Merge pull request [#32](https://github.com/genshen/pkg/issues/32/) from genshen/feature-version-with-commit-id
+* **version:** Merge pull request [#31](https://github.com/genshen/pkg/issues/31/) from genshen/fix-config-format-version-check
 
 ### Refactor
 
