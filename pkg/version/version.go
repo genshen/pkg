@@ -15,9 +15,10 @@ var versionCommand = &cmds.Command{
 	HasOptions:  false,
 }
 
-//var (
-//	h string
-//)
+var (
+	GitCommitID string = "unknown"
+	BuildTime 	string = ""
+)
 
 func init() {
 	versionCommand.Runner = &version{}
@@ -36,7 +37,9 @@ func (v *version) PreRun() error {
 
 func (v *version) Run() error {
 	fmt.Printf("version\t %s\n", pkg.VERSION)
+	fmt.Printf("Commit \t %s\n", GitCommitID)
 	fmt.Println("Author\t genshenchu@gmail.com")
 	fmt.Println("Url\t https://github.com/genshen/pkg")
+	fmt.Printf("Build time \t %s\n", BuildTime)
 	return nil
 }
