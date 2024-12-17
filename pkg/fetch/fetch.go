@@ -258,8 +258,8 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, acti
 				}
 			}
 
-			if pkgYaml.FormatVersion != pkg.FORMAT_VERSION {
-				return fmt.Errorf("package format version does not match, require format version is %d", pkg.FORMAT_VERSION)
+			if pkgYaml.FormatVersion < pkg.COMPATIBLE_MIN_FORMAT_VERSION {
+				return fmt.Errorf("package format version does not match, require min format version is %d", pkg.COMPATIBLE_MIN_FORMAT_VERSION)
 			}
 
 			// process features: filter active features and get the optional packages for the features.
