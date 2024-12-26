@@ -71,7 +71,7 @@ func (l *list) PreRun() error {
 func (l *list) Run() error {
 	pkgList := []string{}
 	for _, meta := range l.Metas {
-		if meta.PackageName == "root" {
+		if meta.PackageName == pkg.RootPKG {
 			continue
 		}
 
