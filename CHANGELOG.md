@@ -1,4 +1,33 @@
 
+<a name="v0.6.1"></a>
+## [v0.6.1](https://github.com/genshen/pkg/compare/v0.6.1..v0.6.0)
+
+> 2024-12-26
+
+### Build
+
+* **go-module:** bump dependency packages
+
+### Docs
+
+* **changelog:** update changelog for v0.6.1
+
+### Feat
+
+* **fetch:** support to set archive package name with path separator in it
+* **version:** bump pkg version to 0.6.1
+
+### Fix
+
+* **fetch:** fix error of `no extraction format` while performing archive package extration
+* **import:** fix "no extraction format" error while import tarball file
+
+### Merge
+
+* Merge pull request [#33](https://github.com/genshen/pkg/issues/33/) from genshen/fix-fetch-import-tar-extration
+* **fetch:** Merge pull request [#34](https://github.com/genshen/pkg/issues/34/) from genshen/feature-archive-package-name-with-path-separator
+
+
 <a name="v0.6.0"></a>
 ## [v0.6.0](https://github.com/genshen/pkg/compare/v0.6.0..v0.5.0)
 
@@ -21,6 +50,7 @@
 
 ### Docs
 
+* **changelog:** continue to append changelog for v0.6.0
 * **changelog:** update changelog for v0.6.0
 
 ### Feat
