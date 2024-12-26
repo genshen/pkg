@@ -6,9 +6,9 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/genshen/cmds v0.0.0-20200505065256-d4c52690e15b
 	github.com/go-git/go-git/v5 v5.12.0
-	github.com/mholt/archives v0.0.0-20241123153623-b85dd98f4298
+	github.com/mholt/archives v0.0.0-20241216060121-23e0af8fe73d
 	github.com/otiai10/copy v1.14.0
-	github.com/rogpeppe/go-internal v1.11.0
+	github.com/rogpeppe/go-internal v1.13.1
 	github.com/sirupsen/logrus v1.9.3
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -50,13 +50,13 @@ require (
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sync v0.9.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/term v0.20.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/term v0.21.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
-	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
+	golang.org/x/tools v0.22.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
