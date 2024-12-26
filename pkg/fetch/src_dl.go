@@ -104,8 +104,16 @@ func filesSrc(srcDes, packageName, baseUrl string, files map[string]string) erro
 	return nil
 }
 
+// archivePackageFilename returns the archive file storage path by given
+// srcPath (base path, e.g. $cache/src/packageName) and packageName and archiveType.
+func archivePackageFilepath(srcPath, packageName, archiveType string) string {
+	packageName = strings.ReplaceAll(packageName, "/", "_")
+	packageName = strings.ReplaceAll(packageName, string(filepath.Separator), "_")
+	return filepath.Join(srcPath, packageName+"."+archiveType)
+}
+
 // download archived package source code to destination directory, usually its 'vendor/src/PackageName/'.
-// srcPath is the src location of this package (vendor/src/packageName).
+// srcPath is the src location of this package ($cache/src/packageName).
 func archiveSrc(archiveType string, srcPath string, packageName string, remoteUrl string) error {
 	if err := os.MkdirAll(srcPath, 0744); err != nil {
 		return err
@@ -144,7 +152,7 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 	}
 
 	// save file.
-	zipName := filepath.Join(srcPath, packageName+"."+archiveType)
+	zipName := archivePackageFilepath(srcPath, packageName, archiveType)
 	if fp, err := os.Create(zipName); err != nil { //todo create dir if file includes father dirs.
 		return err // todo fallback
 	} else {
