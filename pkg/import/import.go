@@ -90,7 +90,7 @@ func (i *_import) Run() error {
 
 	format := archives.CompressedArchive{
 		Compression: archives.Gz{},
-		Archival:    archives.Tar{},
+		Extraction:  archives.Tar{},
 	}
 
 	handle := func(ctx context.Context, f archives.FileInfo) error {
