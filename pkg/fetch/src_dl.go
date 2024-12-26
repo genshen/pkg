@@ -168,15 +168,16 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 	} else {
 		defer f.Close()
 
+		// todo use archives.Identify(), instead of if-else.
 		ac := archives.CompressedArchive{}
 		if archiveType == "tar.bz2" {
+			ac.Extraction = archives.Tar{}
 			ac.Compression = archives.Bz2{}
-			ac.Archival = archives.Tar{}
 		} else if archiveType == "tar.gz" {
+			ac.Extraction = archives.Tar{}
 			ac.Compression = archives.Gz{}
-			ac.Archival = archives.Tar{}
 		} else if archiveType == "zip" {
-			ac.Archival = archives.Zip{}
+			ac.Extraction = archives.Zip{}
 		} else {
 			return errors.New("unsupported type error")
 		}
