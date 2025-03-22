@@ -59,10 +59,13 @@ func getHttpClientProxy(reqUrl string) *url.URL {
 // download source code packages.
 // files: just download files specified by map files.
 func filesSrc(srcDes, packageName, baseUrl string, files map[string]string) error {
-	// check packageName dir, if not exists, then create it.
-	if err := os.MkdirAll(srcDes, 0744); err != nil {
+	// create temp dir for saving downloaded files.
+	tempPath, err := pkg.MakeGlobalPackageSrcDlTempPath()
+	if err != nil {
 		return err
 	}
+	log.WithFields(log.Fields{"pkg": packageName, "temp path": tempPath}).
+		Debugln("downloading dependency to temporary directory.")
 
 	// setup proxy if possible
 	proxyUrl := getHttpClientProxy(baseUrl)
@@ -80,7 +83,7 @@ func filesSrc(srcDes, packageName, baseUrl string, files map[string]string) erro
 	for k, file := range files {
 		log.WithFields(log.Fields{
 			"pkg":     packageName,
-			"storage": filepath.Join(srcDes, file),
+			"storage": filepath.Join(tempPath, file),
 		}).Info("downloading dependencies.")
 		res, err := client.Get(pkg.UrlJoin(baseUrl, k))
 		if err != nil {
@@ -90,7 +93,7 @@ func filesSrc(srcDes, packageName, baseUrl string, files map[string]string) erro
 			return errors.New("http response code is not ok (200)")
 		}
 		// todo create dir
-		if fp, err := os.Create(filepath.Join(srcDes, file)); err != nil { //todo create dir if file includes father dirs.
+		if fp, err := os.Create(filepath.Join(tempPath, file)); err != nil { //todo create dir if file includes father dirs.
 			return err // todo fallback
 		} else {
 			if _, err = io.Copy(fp, res.Body); err != nil {
@@ -100,6 +103,13 @@ func filesSrc(srcDes, packageName, baseUrl string, files map[string]string) erro
 				"pkg": packageName,
 			}).Info("downloaded dependencies.")
 		}
+	}
+
+	// move dir from temp dir to real source file location.
+	log.WithFields(log.Fields{"pkg": packageName, "temp path": tempPath, "src path": srcDes}).
+		Debugln("move dependency from temporary directory to source path.")
+	if err := os.Rename(tempPath, srcDes); err != nil {
+		return err
 	}
 	return nil
 }
@@ -115,14 +125,12 @@ func archivePackageFilepath(srcPath, packageName, archiveType string) string {
 // download archived package source code to destination directory, usually its 'vendor/src/PackageName/'.
 // srcPath is the src location of this package ($cache/src/packageName).
 func archiveSrc(archiveType string, srcPath string, packageName string, remoteUrl string) error {
-	if err := os.MkdirAll(srcPath, 0744); err != nil {
+	tempPath, err := pkg.MakeGlobalPackageSrcDlTempPath()
+	if err != nil {
 		return err
 	}
-
-	log.WithFields(log.Fields{
-		"pkg":     packageName,
-		"storage": srcPath,
-	}).Info("downloading dependency package.")
+	log.WithFields(log.Fields{"pkg": packageName, "temp path": tempPath}).
+		Debugln("downloading dependency to temporary directory.")
 
 	// setup proxy if possible
 	proxyUrl := getHttpClientProxy(remoteUrl)
@@ -152,7 +160,7 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 	}
 
 	// save file.
-	zipName := archivePackageFilepath(srcPath, packageName, archiveType)
+	zipName := archivePackageFilepath(tempPath, packageName, archiveType)
 	if fp, err := os.Create(zipName); err != nil { //todo create dir if file includes father dirs.
 		return err // todo fallback
 	} else {
@@ -166,8 +174,8 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 
 	// unzip
 	log.WithFields(log.Fields{
-		"pkg":     zipName,
-		"storage": srcPath,
+		"pkg":     packageName,
+		"storage": tempPath,
 	}).Println("extracting package.")
 
 	// open archive file
@@ -191,7 +199,7 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 		}
 
 		handle := func(ctx context.Context, file archives.FileInfo) error {
-			if err := pkg.Unzip(file, srcPath); err != nil {
+			if err := pkg.Unzip(file, tempPath); err != nil {
 				return err
 			}
 			return nil
@@ -203,9 +211,16 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 	}
 
 	log.WithFields(log.Fields{
-		"pkg":     zipName,
-		"storage": srcPath,
+		"pkg":     packageName,
+		"storage": tempPath,
 	}).Println("finished extracting package.")
+
+	// move dir from temp dir to real source file location.
+	log.WithFields(log.Fields{"pkg": packageName, "temp path": tempPath, "src path": srcPath}).
+		Debugln("move dependency from temporary directory to source path.")
+	if err := os.Rename(tempPath, srcPath); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -216,9 +231,12 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 // packageUrl:  package remote path, usually its a url.
 // version: git commit hash or git tag or git branch.
 func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl, version string) error {
-	if err := os.MkdirAll(packageCacheDir, 0744); err != nil {
+	tempPath, err := pkg.MakeGlobalPackageSrcDlTempPath()
+	if err != nil {
 		return err
 	}
+	log.WithFields(log.Fields{"pkg": packagePath, "temp path": tempPath}).
+		Debugln("downloading dependency to temporary directory.")
 
 	// generate auth repository url.
 	repoUrl := packageUrl
@@ -241,7 +259,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 	// init ReferenceName using branch and tag.
 	var checkoutOpt git.CheckoutOptions
 	// clone repository.
-	if repos, err := git.PlainClone(packageCacheDir, false, &git.CloneOptions{
+	if repos, err := git.PlainClone(tempPath, false, &git.CloneOptions{
 		URL:      repoUrl,
 		Progress: os.Stdout,
 		//ReferenceName: referenceName, // specific branch or tag.
@@ -306,11 +324,25 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 		if err = worktree.Checkout(&checkoutOpt); err != nil {
 			return err
 		}
+
+		// move temp dir to global home source dir
+		log.WithFields(log.Fields{"pkg": packagePath, "temp path": tempPath, "src path": packageCacheDir}).
+			Debugln("move dependency from temporary directory to source path.")
+		// create parent dir first and then perform move.
+		if srcParentDir, err := pkg.GetCachedPackageSrcPath(packagePath, ".draft"); err != nil {
+			return err
+		} else {
+			if err := os.MkdirAll(srcParentDir, 0744); err != nil {
+				return err
+			}
+			if err := os.Rename(tempPath, packageCacheDir); err != nil {
+				return err
+			}
+		}
 	}
 
 	// remove .git directory.
-	err := os.RemoveAll(filepath.Join(packageCacheDir, ".git"))
-	if err != nil {
+	if err := os.RemoveAll(filepath.Join(packageCacheDir, ".git")); err != nil {
 		return err
 	}
 
