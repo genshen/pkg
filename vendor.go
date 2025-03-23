@@ -6,16 +6,17 @@ import (
 )
 
 const (
-	VendorName        = "vendor"
-	VendorCache       = "cache"
-	VendorSrc         = "src"
-	VendorPkg         = "pkg"
-	VendorScripts     = "scripts"
-	VendorInclude     = "include"
-	VendorLib         = "lib"
-	VendorLib64       = "lib64"
-	VendorUserHome    = ".pkg"
-	VendorUserHomeSrc = "registry/default-pkg/src"
+	VendorName            = "vendor"
+	VendorCache           = "cache"
+	VendorSrc             = "src"
+	VendorPkg             = "pkg"
+	VendorScripts         = "scripts"
+	VendorInclude         = "include"
+	VendorLib             = "lib"
+	VendorLib64           = "lib64"
+	VendorUserHome        = ".pkg"
+	VendorUserHomeSrc     = "registry/default-pkg/src"
+	VendorUserHomeSrcTemp = "registry/default-pkg/src/temp"
 )
 
 const (
@@ -55,12 +56,25 @@ func getPackageVendorSrcPath(base string, packageName string, version string) st
 	return filepath.Join(base, VendorSrcDir, packageName+"@"+version)
 }
 
+// $HOME/.pkg/registry/default-pkg/src/@packageName/@version
 func GetCachedPackageSrcPath(packageName string, version string) (string, error) {
 	if path, err := GetPkgUserHomeFile(filepath.Join(VendorUserHomeSrc, packageName+"@"+version)); err != nil {
 		return "", err
 	} else {
 		return path, nil
 	}
+}
+
+func MakeGlobalPackageSrcDlTempPath() (string, error) {
+	// use default parent dir.
+	// we can also use a custom dir: tempDirParentPath, err := GetPkgUserHomeFile(filepath.Join(VendorUserHomeSrcTemp, ""))
+	// aka: $HOME/.pkg/register/default-pkg/src/@{HASH_PATH}
+	tempDirParentPath := ""
+	srcTempPath, err := os.MkdirTemp(tempDirParentPath, "pkg-dl-*")
+	if err != nil {
+		return "", err
+	}
+	return srcTempPath, nil
 }
 
 // return @base/vendor/pkg/@packageName
