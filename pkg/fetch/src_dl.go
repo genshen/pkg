@@ -273,6 +273,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 	} else { // clone succeed.
 		// fetch all branches references from remote
 		if err := repos.Fetch(&git.FetchOptions{
+			Force:    true,
 			RefSpecs: []config.RefSpec{"refs/*:refs/*", "HEAD:refs/heads/HEAD"},
 		}); err != nil {
 			return err
