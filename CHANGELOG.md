@@ -1,4 +1,28 @@
 
+<a name="v0.6.2"></a>
+## [v0.6.2](https://github.com/genshen/pkg/compare/v0.6.2..v0.6.1)
+
+> 2025-09-22
+
+### Docs
+
+* **changelog:** update changelog for v0.6.2
+
+### Feat
+
+* **fetch:** download package to a temp dir and then move it to gloabl cache dir
+* **version:** bump version to v0.6.2
+
+### Fix
+
+* **fetch:** git pkg fetch error of "some refs were not updated" when fetching refs in a git repo
+
+### Merge
+
+* **fetch:** Merge pull request [#36](https://github.com/genshen/pkg/issues/36/) from genshen/fix-git-fetch-ref-not-updated
+* **fetch:** Merge pull request [#35](https://github.com/genshen/pkg/issues/35/) from genshen/feature-fetch-download-to-temp-dir
+
+
 <a name="v0.6.1"></a>
 ## [v0.6.1](https://github.com/genshen/pkg/compare/v0.6.1..v0.6.0)
 
@@ -56,11 +80,11 @@
 ### Feat
 
 * migrate to go 1.16+: change package io/ioutil => io or os
+* **fetch:** add more types support for fetching archive package
 * **fetch:** min pkg version constraint in yaml file and check it while fetching
 * **fetch:** support `features`: group optional packages into `features` and enables/disable them
 * **fetch:** add `optional` flag to package for skipping a package
 * **fetch:** support to check and use system proxy to fetch file/archive/git packages
-* **fetch:** add more types support for fetching archive package
 * **fetch:** make find package options as a cli flag
 * **fetch:** add option `NO_DEFAULT_PATH` for find_package when generating file pkg.dep.cmake
 * **fetch:** let user select a package version when package conflict occurs
@@ -80,20 +104,20 @@
 
 ### Merge
 
-* Merge pull request [#25](https://github.com/genshen/pkg/issues/25/) from genshen/bump-go-packages
 * Merge pull request [#21](https://github.com/genshen/pkg/issues/21/) from genshen/ci-bump-artifact-actions-and-release-action
 * Merge pull request [#22](https://github.com/genshen/pkg/issues/22/) from genshen/feature-archive-package-more-types-support
 * Merge pull request [#23](https://github.com/genshen/pkg/issues/23/) from genshen/feature-fetch-via-system-proxy
+* Merge pull request [#25](https://github.com/genshen/pkg/issues/25/) from genshen/bump-go-packages
 * **export:** Merge pull request [#27](https://github.com/genshen/pkg/issues/27/) from genshen/fix-export-gen-archive-context-nil
+* **fetch:** Merge pull request [#28](https://github.com/genshen/pkg/issues/28/) from genshen/fix-fetch-package-cache-strategy
 * **fetch:** Merge pull request [#26](https://github.com/genshen/pkg/issues/26/) from genshen/feature-min-pkg-version-check
 * **fetch:** Merge pull request [#24](https://github.com/genshen/pkg/issues/24/) from genshen/feature-fetch-by-features
-* **fetch:** Merge pull request [#28](https://github.com/genshen/pkg/issues/28/) from genshen/fix-fetch-package-cache-strategy
 * **fetch:** Merge pull request [#14](https://github.com/genshen/pkg/issues/14/) from genshen/feature-find-package-options
 * **fetch:** Merge pull request [#11](https://github.com/genshen/pkg/issues/11/) from genshen/feature-fetch-check-packages-conflict
 * **go-module:** Merge pull request [#15](https://github.com/genshen/pkg/issues/15/) from genshen/bump-go-1.19+
 * **go-module:** Merge pull request [#12](https://github.com/genshen/pkg/issues/12/) from genshen/dependabot/go_modules/github.com/go-git/go-git/v5-5.11.0
-* **install:** Merge pull request [#30](https://github.com/genshen/pkg/issues/30/) from genshen/fix-rm-workdir-before-instruction-run
 * **install:** Merge pull request [#29](https://github.com/genshen/pkg/issues/29/) from genshen/fix-install-instruction-trim
+* **install:** Merge pull request [#30](https://github.com/genshen/pkg/issues/30/) from genshen/fix-rm-workdir-before-instruction-run
 * **install:** Merge pull request [#10](https://github.com/genshen/pkg/issues/10/) from genshen/feature-install-n-jobs
 * **list:** Merge pull request [#20](https://github.com/genshen/pkg/issues/20/) from genshen/feature-package-list-subcommand
 * **version:** Merge pull request [#32](https://github.com/genshen/pkg/issues/32/) from genshen/feature-version-with-commit-id
