@@ -105,10 +105,8 @@ func filesSrc(srcDes, packageName, baseUrl string, files map[string]string) erro
 		}
 	}
 
-	// move dir from temp dir to real source file location.
-	log.WithFields(log.Fields{"pkg": packageName, "temp path": tempPath, "src path": srcDes}).
-		Debugln("move dependency from temporary directory to source path.")
-	if err := os.Rename(tempPath, srcDes); err != nil {
+	// move dir from temp dir to real source file location in postDownloadStep.
+	if err := postDownloadStep(packageName, tempPath, srcDes); err != nil {
 		return err
 	}
 	return nil
@@ -215,10 +213,8 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 		"storage": tempPath,
 	}).Println("finished extracting package.")
 
-	// move dir from temp dir to real source file location.
-	log.WithFields(log.Fields{"pkg": packageName, "temp path": tempPath, "src path": srcPath}).
-		Debugln("move dependency from temporary directory to source path.")
-	if err := os.Rename(tempPath, srcPath); err != nil {
+	// move dir from temp dir to real source file location in postDownloadStep.
+	if err := postDownloadStep(packageName, tempPath, srcPath); err != nil {
 		return err
 	}
 	return nil
@@ -326,19 +322,8 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 			return err
 		}
 
-		// move temp dir to global home source dir
-		log.WithFields(log.Fields{"pkg": packagePath, "temp path": tempPath, "src path": packageCacheDir}).
-			Debugln("move dependency from temporary directory to source path.")
-		// create parent dir first and then perform move.
-		if srcParentDir, err := pkg.GetCachedPackageSrcPath(packagePath, ".draft"); err != nil {
+		if err := postDownloadStep(packagePath, tempPath, packageCacheDir); err != nil {
 			return err
-		} else {
-			if err := os.MkdirAll(srcParentDir, 0744); err != nil {
-				return err
-			}
-			if err := os.Rename(tempPath, packageCacheDir); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -347,5 +332,29 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 		return err
 	}
 
+	return nil
+}
+
+func postDownloadStep(packageName, tempPath, packageCacheDir string) error {
+	// move temp dir to global home source dir
+	log.WithFields(log.Fields{"pkg": packageName, "temp path": tempPath, "src path": packageCacheDir}).
+		Debugln("move dependency from temporary directory to source path.")
+	// create parent dir first and then perform move.
+	if srcParentDir, err := pkg.GetCachedPackageSrcPath(packageName, ".draft"); err != nil {
+		return err
+	} else {
+		if err := os.MkdirAll(srcParentDir, 0744); err != nil {
+			return err
+		}
+		// remove the old package directory if possible
+		if err := os.RemoveAll(packageCacheDir); err != nil {
+			return err
+		}
+
+		// perform renaming: move from tem dir to the system cache dir.
+		if err := os.Rename(tempPath, packageCacheDir); err != nil {
+			return err
+		}
+	}
 	return nil
 }

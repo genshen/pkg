@@ -43,6 +43,7 @@ func init() {
 	fetchCommand.FlagSet.StringVar(&f.PkgHome, "p", pwd, "absolute or relative path for file "+pkg.PkgFileName)
 	fetchCommand.FlagSet.StringVar(&f.CMakeFindPackageOption, "cmake-find-package-arg", "NO_DEFAULT_PATH", "global options for find_package when generating file pkg.dep.cmake")
 	fetchCommand.FlagSet.StringVar(&f.FeaturesOption, "features", DefaultFeatureName, "Comma separated list of features to activate. e.g. --features=foo,bar")
+	fetchCommand.FlagSet.BoolVar(&f.NoCache, "no-cache", false, "Don't use the system cache. Directly download from the Internet")
 	// todo make pkgHome abs path anyway.
 	fetchCommand.FlagSet.Usage = fetchCommand.Usage // use default usage provided by cmds.Command.
 	fetchCommand.Runner = &f
@@ -55,6 +56,7 @@ type fetch struct {
 	FeaturesOption         string   // cli `feature` string
 	FeatureList            []string // feature list parsed from cli option.
 	MirrorConfPath         string   // the file path of repo mirror file.
+	NoCache                bool     // download package without using global cache
 	DepTree                pkg.DependencyTree
 	Auth                   map[string]conf.Auth
 	GlobalReplace          map[string]string
@@ -329,7 +331,7 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []strin
 		srcDes := context.HomeCacheSrcPath()
 		vendorSrcDes := context.VendorSrcPath(f.PkgHome)
 
-		err, strategy := determinePackageCacheStrategy(context, f.PkgHome)
+		err, strategy := determinePackageCacheStrategy(context, f.PkgHome, f.NoCache)
 		if err != nil {
 			return nil, err
 		}
