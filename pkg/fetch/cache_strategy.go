@@ -17,7 +17,8 @@ const (
 type CacheStrategy int
 
 // determinePackageCacheStrategy determines package cache strategy via package filesystem path.
-func determinePackageCacheStrategy(packageMeta pkg.PackageMeta, projectRoot string) (error, CacheStrategy) {
+// noCache: dont use the global cache
+func determinePackageCacheStrategy(packageMeta pkg.PackageMeta, projectRoot string, noCache bool) (error, CacheStrategy) {
 	pkgCachePath := packageMeta.HomeCacheSrcPath() // package global cache dir
 	pkgVendorPath := packageMeta.VendorSrcPath(projectRoot)
 
@@ -28,7 +29,10 @@ func determinePackageCacheStrategy(packageMeta pkg.PackageMeta, projectRoot stri
 				return nil, CacheStrategyDownloadFromRemote
 			}
 			return err, CacheStrategySkip
-		} else { // vendor src does not exist, but global cache exist.
+		} else {         // vendor src does not exist, but global cache exist.
+			if noCache { // if noCache, directly download. Don't use global cache.
+				return err, CacheStrategyDownloadFromRemote
+			}
 			return nil, CacheStrategyCopyFromGlobalCache
 		}
 	} else if err != nil { // other error for vendor src stat
