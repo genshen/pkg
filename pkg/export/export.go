@@ -17,7 +17,7 @@ import (
 
 var exportCommand = &cmds.Command{
 	Name:        "export",
-	Summary:     "export dependency packages export a tarball file",
+	Summary:     "export dependency packages to a tarball file",
 	Description: "export dependency packages to a tarball file (.tar) specified by a file path",
 	CustomFlags: false,
 	HasOptions:  true,

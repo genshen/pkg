@@ -19,7 +19,7 @@ const ImportCacheDir = ".import.cache"
 var importCommand = &cmds.Command{
 	Name:        "import",
 	Summary:     "import dependency packages from tarball file",
-	Description: "import and extract dependency packages from tarball file (.tar) specified by a file path",
+	Description: "import and extract dependency packages from tarball file (.tar.gz) specified by a file path",
 	CustomFlags: false,
 	HasOptions:  true,
 }
