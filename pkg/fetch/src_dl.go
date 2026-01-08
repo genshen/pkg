@@ -334,6 +334,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 			"version": version,
 		}).Println("checkout repository to reference.")
 		// do checkout
+		checkoutOpt.Force = true // force checkout to avoid checkout fail (e.g. "worktree contains unstaged changes").
 		if err = worktree.Checkout(&checkoutOpt); err != nil {
 			return err
 		}
