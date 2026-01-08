@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/genshen/pkg"
@@ -269,6 +270,19 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 		log.Println("Error here", err)
 		return err
 	} else { // clone succeed.
+		// set filemode to false for Windows system
+		if runtime.GOOS == "windows" {
+			if cfg, err := repos.Config(); err != nil {
+				return err
+			} else {
+				cfg.Core.FileMode = false
+				err = repos.SetConfig(cfg)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		// fetch all branches references from remote
 		if err := repos.Fetch(&git.FetchOptions{
 			Force:    true,
