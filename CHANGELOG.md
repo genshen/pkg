@@ -1,4 +1,44 @@
 
+<a name="v0.6.3"></a>
+## [v0.6.3](https://github.com/genshen/pkg/compare/v0.6.3..v0.6.2)
+
+> 2026-01-08
+
+### Build
+
+* **go-module:** bumo go-git from v5.16.4 to v6
+* **go-module:** bump go-git to v5.16.4
+
+### Docs
+
+* **changelog:** update changelog for v0.6.3
+
+### Feat
+
+* **fetch:** set force checkout to avoid possible checkout failing for the git package
+* **fetch:** remove the old package in the global cache if download again
+* **fetch:** add `no-cache` option for the `fetch` subcommand: don't use the system package cache
+* **version:** bump version to v0.6.3
+
+### Fix
+
+* **fetch:** correct the log or add the missing parameter to log
+* **fetch:** set filemode as false on Windows to fix fetch error `worktree contains unstaged changes`
+* **fetch:** fix "invalid cross-device link" when moving downloaded data from tmp to system cache dir
+
+### Merge
+
+* Merge pull request [#41](https://github.com/genshen/pkg/issues/41/) from genshen/fix-typos-and-code-style
+* **fetch:** Merge pull request [#40](https://github.com/genshen/pkg/issues/40/) from genshen/fix-fetch-error-unstaged-changes
+* **fetch:** Merge pull request [#38](https://github.com/genshen/pkg/issues/38/) from genshen/fix-invalid-device
+* **fetch:** Merge pull request [#37](https://github.com/genshen/pkg/issues/37/) from genshen/feature-fetch-with-no-cache-flag
+* **go-module:** Merge pull request [#39](https://github.com/genshen/pkg/issues/39/) from genshen/bump-go-packages
+
+### Style
+
+* project code format
+
+
 <a name="v0.6.2"></a>
 ## [v0.6.2](https://github.com/genshen/pkg/compare/v0.6.2..v0.6.1)
 
