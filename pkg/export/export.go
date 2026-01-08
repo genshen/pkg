@@ -5,14 +5,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/genshen/cmds"
-	"github.com/genshen/pkg"
-	"github.com/mholt/archives"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/genshen/cmds"
+	"github.com/genshen/pkg"
+	"github.com/mholt/archives"
+	log "github.com/sirupsen/logrus"
 )
 
 var exportCommand = &cmds.Command{

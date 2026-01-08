@@ -11,7 +11,7 @@ const (
 	CacheStrategyCopyFromGlobalCache CacheStrategy = iota                            // package exits at user home's global cache directory.
 	CacheStrategyUserLocalVendor     CacheStrategy = iota                            // package exist in project's vendor/src directory.
 	CacheStrategySkip                CacheStrategy = iota                            // skip package downloading or local copying
-	CacheStrategyDefault             CacheStrategy = CacheStrategyDownloadFromRemote // package exist in project's vendor/src directory.
+	CacheStrategyDefault                           = CacheStrategyDownloadFromRemote // package exist in project's vendor/src directory.
 )
 
 type CacheStrategy int
@@ -29,7 +29,7 @@ func determinePackageCacheStrategy(packageMeta pkg.PackageMeta, projectRoot stri
 				return nil, CacheStrategyDownloadFromRemote
 			}
 			return err, CacheStrategySkip
-		} else {         // vendor src does not exist, but global cache exist.
+		} else { // vendor src does not exist, but global cache exist.
 			if noCache { // if noCache, directly download. Don't use global cache.
 				return err, CacheStrategyDownloadFromRemote
 			}

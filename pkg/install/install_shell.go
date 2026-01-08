@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/genshen/pkg"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/genshen/pkg"
 )
 
 // writer instructions as shell format to file

@@ -3,6 +3,7 @@ package version
 import (
 	"flag"
 	"fmt"
+
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
 )
@@ -16,8 +17,8 @@ var versionCommand = &cmds.Command{
 }
 
 var (
-	GitCommitID string = "unknown"
-	BuildTime 	string = ""
+	GitCommitID = "unknown"
+	BuildTime   = ""
 )
 
 func init() {

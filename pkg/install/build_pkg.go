@@ -2,8 +2,9 @@ package install
 
 import (
 	"fmt"
-	"github.com/genshen/pkg"
 	"strings"
+
+	"github.com/genshen/pkg"
 )
 
 // build pkg from dependency tree.

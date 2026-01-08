@@ -3,11 +3,12 @@ package init
 import (
 	"errors"
 	"flag"
+	"os"
+	"path/filepath"
+
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
 	"gopkg.in/yaml.v3"
-	"os"
-	"path/filepath"
 )
 
 var initCommand = &cmds.Command{

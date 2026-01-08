@@ -4,10 +4,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/genshen/cmds"
-	"github.com/genshen/pkg"
 	"os"
 	"sort"
+
+	"github.com/genshen/cmds"
+	"github.com/genshen/pkg"
 )
 
 var listCommand = &cmds.Command{

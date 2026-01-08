@@ -5,13 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
 	"github.com/mholt/archives"
 	cp "github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"path/filepath"
 )
 
 const ImportCacheDir = ".import.cache"

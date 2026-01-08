@@ -5,6 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"text/template"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
@@ -13,11 +19,6 @@ import (
 	"github.com/rogpeppe/go-internal/semver"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"io"
-	"os"
-	"path/filepath"
-	"strings"
-	"text/template"
 )
 
 var fetchCommand = &cmds.Command{

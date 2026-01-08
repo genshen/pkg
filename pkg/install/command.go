@@ -3,13 +3,14 @@ package install
 import (
 	"errors"
 	"fmt"
-	"github.com/genshen/pkg"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/genshen/pkg"
+	log "github.com/sirupsen/logrus"
 )
 
 // run the instruction
