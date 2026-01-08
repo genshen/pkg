@@ -5,19 +5,20 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/genshen/cmds"
-	"github.com/genshen/pkg"
-	"github.com/mholt/archives"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/genshen/cmds"
+	"github.com/genshen/pkg"
+	"github.com/mholt/archives"
+	log "github.com/sirupsen/logrus"
 )
 
 var exportCommand = &cmds.Command{
 	Name:        "export",
-	Summary:     "export dependency packages export a tarball file",
+	Summary:     "export dependency packages to a tarball file",
 	Description: "export dependency packages to a tarball file (.tar) specified by a file path",
 	CustomFlags: false,
 	HasOptions:  true,

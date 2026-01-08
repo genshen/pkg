@@ -2,8 +2,9 @@ package fetch
 
 import (
 	"fmt"
-	"github.com/genshen/pkg"
 	"log"
+
+	"github.com/genshen/pkg"
 )
 
 const FEATURE_DEBUG = true

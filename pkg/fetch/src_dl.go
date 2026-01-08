@@ -157,7 +157,7 @@ func archiveSrc(archiveType string, srcPath string, packageName string, remoteUr
 		archiveType = pkg.DefaultArchiveFormatType
 		log.WithFields(log.Fields{
 			"pkg": packageName,
-		}).Info("set archive package format type to default type: %s.", archiveType)
+		}).Infof("set archive package format type to default type: %s.", archiveType)
 	}
 
 	// save file.
@@ -267,7 +267,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 			URL: proxyUrl,
 		},
 	}); err != nil {
-		log.Println("Error here", err)
+		log.Println("Error here", err, repoUrl)
 		return err
 	} else { // clone succeed.
 		// set filemode to false for Windows system

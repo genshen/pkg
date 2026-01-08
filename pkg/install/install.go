@@ -5,10 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
 	log "github.com/sirupsen/logrus"
-	"os"
 )
 
 var buildCommand = &cmds.Command{

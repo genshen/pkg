@@ -3,13 +3,14 @@ package fetch
 import (
 	"bufio"
 	"fmt"
-	"github.com/genshen/pkg"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/genshen/pkg"
+	log "github.com/sirupsen/logrus"
 )
 
 type cmakeDepData struct {

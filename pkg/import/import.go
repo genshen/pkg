@@ -5,13 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/genshen/cmds"
 	"github.com/genshen/pkg"
 	"github.com/mholt/archives"
 	cp "github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"path/filepath"
 )
 
 const ImportCacheDir = ".import.cache"
@@ -19,7 +20,7 @@ const ImportCacheDir = ".import.cache"
 var importCommand = &cmds.Command{
 	Name:        "import",
 	Summary:     "import dependency packages from tarball file",
-	Description: "import and extract dependency packages from tarball file (.tar) specified by a file path",
+	Description: "import and extract dependency packages from tarball file (.tar.gz) specified by a file path",
 	CustomFlags: false,
 	HasOptions:  true,
 }
