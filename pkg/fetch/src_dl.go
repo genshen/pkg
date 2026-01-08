@@ -12,6 +12,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/mholt/archives"
+	cp "github.com/otiai10/copy"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -352,8 +353,14 @@ func postDownloadStep(packageName, tempPath, packageCacheDir string) error {
 		}
 
 		// perform renaming: move from tem dir to the system cache dir.
-		if err := os.Rename(tempPath, packageCacheDir); err != nil {
-			return err
+		if err := os.Rename(tempPath, packageCacheDir); err != nil { // try rename
+			if err := cp.Copy(tempPath, packageCacheDir); err != nil { // try copy and remove
+				return err
+			}
+			// remove the dir
+			if err := os.RemoveAll(tempPath); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
