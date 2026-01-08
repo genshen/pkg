@@ -4,22 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/genshen/pkg"
-	"github.com/genshen/pkg/conf"
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/storer"
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/mholt/archives"
-	cp "github.com/otiai10/copy"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+
+	"github.com/genshen/pkg"
+	"github.com/genshen/pkg/conf"
+	"github.com/go-git/go-git/v6"
+	"github.com/go-git/go-git/v6/config"
+	"github.com/go-git/go-git/v6/plumbing"
+	"github.com/go-git/go-git/v6/plumbing/storer"
+	"github.com/go-git/go-git/v6/plumbing/transport"
+	"github.com/mholt/archives"
+	cp "github.com/otiai10/copy"
+	log "github.com/sirupsen/logrus"
 )
 
 // getProxyOptionFromEnvVars returns proxy options from environment variables
@@ -256,7 +258,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 	// init ReferenceName using branch and tag.
 	var checkoutOpt git.CheckoutOptions
 	// clone repository.
-	if repos, err := git.PlainClone(tempPath, false, &git.CloneOptions{
+	if repos, err := git.PlainClone(tempPath, &git.CloneOptions{
 		URL:      repoUrl,
 		Progress: os.Stdout,
 		//ReferenceName: referenceName, // specific branch or tag.
@@ -268,6 +270,19 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 		log.Println("Error here", err)
 		return err
 	} else { // clone succeed.
+		// set filemode to false for Windows system
+		if runtime.GOOS == "windows" {
+			if cfg, err := repos.Config(); err != nil {
+				return err
+			} else {
+				cfg.Core.FileMode = false
+				err = repos.SetConfig(cfg)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		// fetch all branches references from remote
 		if err := repos.Fetch(&git.FetchOptions{
 			Force:    true,
@@ -319,6 +334,7 @@ func gitSrc(auths map[string]conf.Auth, packageCacheDir, packagePath, packageUrl
 			"version": version,
 		}).Println("checkout repository to reference.")
 		// do checkout
+		checkoutOpt.Force = true // force checkout to avoid checkout fail (e.g. "worktree contains unstaged changes").
 		if err = worktree.Checkout(&checkoutOpt); err != nil {
 			return err
 		}
