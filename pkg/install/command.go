@@ -81,6 +81,9 @@ func (in *InsExecutor) InsRun(triple pkg.InsTriple, meta *pkg.PackageMeta) error
 	return nil
 }
 
+// InsCMake run cmake config and build command from the triple config.
+// Triple Second: cmake config arguments
+// Triple Third: cmake build arguments
 func (in *InsExecutor) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) error {
 	packageCacheDir := pkg.GetCachePath(in.pkgHome, meta.PackageName)
 	srcPath := meta.VendorSrcPath(in.pkgHome)
@@ -96,10 +99,16 @@ func (in *InsExecutor) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) err
 		}
 	}
 
-	// prepare cmake config and building command arguments
+	// prepare cmake config from "features" in pkg.yaml
+	if meta.Features != nil && len(meta.Features) != 0 {
+		triple.Second = triple.Second + " " + featuresToOptions(meta.Features)
+	}
+	// prepare cmake config from cli
 	if in.cmakeConfigArg != "" {
 		triple.Second = triple.Second + " " + in.cmakeConfigArg
 	}
+
+	// prepare cmake building command arguments
 	if in.cmakeBuildArg != "" {
 		triple.Third = triple.Third + " " + in.cmakeBuildArg
 	}
@@ -131,7 +140,7 @@ func (in *InsExecutor) InsAutoPkg(triple pkg.InsTriple, meta *pkg.PackageMeta) e
 	if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc == "" {
 		// use cmake instruction with features (features as cmake options)
 		triple.First = pkg.InsCmake
-		triple.Second = featuresToOptions(meta.Features)
+		triple.Second = ""
 		triple.Third = ""
 		return in.InsCMake(triple, meta)
 	}
