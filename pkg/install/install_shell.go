@@ -95,12 +95,21 @@ func (sh *InsShellWriter) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) 
 	pathBase := "${PROJECT_HOME}"
 	srcPath := meta.VendorSrcPath(pathBase)
 
+	// prepare cmake config from "features" in pkg.yaml
+	if meta.Features != nil && len(meta.Features) != 0 {
+		triple.Second = triple.Second + " " + featuresToOptions(meta.Features)
+	}
+
+	// prepare cmake config from cli
 	if sh.cmakeConfigArg != "" {
 		triple.Second = triple.Second + " " + sh.cmakeConfigArg
 	}
+
+	// prepare cmake building command arguments
 	if sh.cmakeBuildArg != "" {
 		triple.Third = triple.Third + " " + sh.cmakeBuildArg
 	}
+
 	var configCmd = fmt.Sprintf("cmake -S \"%s\" -B \"%s\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=\"%s\" %s",
 		srcPath, pkg.GetCachePath(pathBase, meta.PackageName),
 		pkg.GetPackagePkgPath(pathBase, meta.PackageName), triple.Second)
@@ -118,7 +127,7 @@ func (sh *InsShellWriter) InsAutoPkg(triple pkg.InsTriple, meta *pkg.PackageMeta
 	if pkgEnvInc := os.Getenv("PKG_INNER_BUILD"); pkgEnvInc == "" {
 		// use cmake instruction with features (features as cmake options)
 		triple.First = pkg.InsCmake
-		triple.Second = featuresToOptions(meta.Features)
+		triple.Second = ""
 		triple.Third = ""
 		return sh.InsCMake(triple, meta)
 	}
