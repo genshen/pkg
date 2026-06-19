@@ -32,12 +32,18 @@ func init() {
 	cleanCommand.FlagSet = fs
 	cleanCommand.FlagSet.StringVar(&clean.home, "home", pwd, "path of home directory")
 	cleanCommand.FlagSet.Usage = cleanCommand.Usage // use default usage provided by cmds.Command.
+	cleanCommand.FlagSet.BoolVar(&clean.cleanInstallDir, "install-dir", false, "clean the installation directory under `vendor/pkg` (default: false)")
+	cleanCommand.FlagSet.BoolVar(&clean.cleanCacheDir, "cache-dir", true, "clean the cache directory under `vendor/cache`.")
+	cleanCommand.FlagSet.BoolVar(&clean.cleanAll, "all", false, "clean the both installation directory and cache directory. (default: false)")
 	cleanCommand.Runner = &clean
 	cmds.AllCommands = append(cmds.AllCommands, cleanCommand)
 }
 
 type clean struct {
-	home string
+	home            string
+	cleanAll        bool
+	cleanCacheDir   bool
+	cleanInstallDir bool
 }
 
 func (c *clean) PreRun() error {
@@ -48,18 +54,37 @@ func (c *clean) PreRun() error {
 }
 
 func (c *clean) Run() error {
-	cachePath := filepath.Join(c.home, pkg.VendorName, pkg.VendorCache)
-	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
+	if c.cleanAll || c.cleanCacheDir {
+		cachePath := filepath.Join(c.home, pkg.VendorName, pkg.VendorCache)
+		err := c.cleanDir("cache", cachePath)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.cleanAll || c.cleanInstallDir {
+		installPath := filepath.Join(c.home, pkg.VendorName, pkg.VendorPkg)
+		err := c.cleanDir("install", installPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *clean) cleanDir(logDirName string, dirPath string) error {
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		log.Warnln("no cache directory found, no need to clean")
 		return nil
 	} else if err != nil {
 		return err
 	} else {
-		if err := os.RemoveAll(cachePath); err != nil {
+		if err := os.RemoveAll(dirPath); err != nil {
 			return err
 		} else {
-			log.Info("clean cache directory `", cachePath, "` successfully")
+			log.Info("clean ", logDirName, " directory `", dirPath, "` successfully")
+			return nil
 		}
 	}
-	return nil
 }
