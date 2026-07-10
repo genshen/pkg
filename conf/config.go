@@ -1,17 +1,18 @@
 package conf
 
 import (
-	"github.com/genshen/pkg"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
+
+	"github.com/genshen/pkg"
+	"gopkg.in/yaml.v3"
 )
 
 const ConfigFileName = "pkg.config.yaml"
 
 type PkgConfig struct {
-	Auth       map[string]Auth   `yaml:"auth"`
-	GitReplace map[string]string `yaml:"git-replace"`
+	Auth       map[string]Auth                   `yaml:"auth"`
+	GitReplace map[string]pkg.GitReplaceMetadata `yaml:"git-replace"`
 }
 
 func ParseConfig(projectHome string) (*PkgConfig, error) {

@@ -3,20 +3,61 @@ package pkg
 import (
 	"fmt"
 	"runtime"
+	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // YamlPkg is for pkg yaml file parsing
 type YamlPkg struct {
-	FormatVersion int                     `yaml:"version"`
-	MinPkgVersion string                  `yaml:"min_pkg_version"`
-	Args          map[string]string       `yaml:"args"`
-	GitReplace    map[string]string       `yaml:"git-replace"`
-	PkgName       string                  `yaml:"pkg"`
-	Packages      V1Packages              `yaml:"packages"` // for pkg file version 1
-	Deps          YamlDependencies        `yaml:"dependencies"`
-	Features      map[string]YamlFeatures `yaml:"features"`
-	Build         map[string][]string     `yaml:"build"`
-	CMakeLib      string                  `yaml:"cmake_lib"`
+	FormatVersion int                           `yaml:"version"`
+	MinPkgVersion string                        `yaml:"min_pkg_version"`
+	Args          map[string]string             `yaml:"args"`
+	GitReplace    map[string]GitReplaceMetadata `yaml:"git-replace"`
+	PkgName       string                        `yaml:"pkg"`
+	Packages      V1Packages                    `yaml:"packages"` // for pkg file version 1
+	Deps          YamlDependencies              `yaml:"dependencies"`
+	Features      map[string]YamlFeatures       `yaml:"features"`
+	Build         map[string][]string           `yaml:"build"`
+	CMakeLib      string                        `yaml:"cmake_lib"`
+}
+
+type GitReplaceType = int
+
+const GitReplaceTypeRemoteGit GitReplaceType = 0
+const GitReplaceTypeLocalGit GitReplaceType = 1
+
+type GitReplaceMetadata struct {
+	Target     string         // replace path
+	TargetType GitReplaceType // the mirror path type
+}
+
+func (g *GitReplaceMetadata) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind == yaml.ScalarNode {
+		var s string
+		if err := value.Decode(&s); err != nil {
+			return err
+		}
+		g.Target = s
+		if strings.HasPrefix(s, "local://") || strings.HasPrefix(s, "file://") {
+			g.TargetType = GitReplaceTypeLocalGit
+		} else {
+			g.TargetType = GitReplaceTypeRemoteGit
+		}
+		return nil
+	}
+
+	// parse something like this in future developing:
+	// github.com/fmtlib/fmt:
+	//   target: ../fmt-main/
+	//   branch: main
+	type alias GitReplaceMetadata
+	var a alias
+	if err := value.Decode(&a); err != nil {
+		return err
+	}
+	*g = GitReplaceMetadata(a)
+	return nil
 }
 
 type YamlFeatures struct {

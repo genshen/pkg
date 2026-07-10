@@ -6,11 +6,12 @@ package pkg
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io"
 	"log"
 	"os"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -28,11 +29,11 @@ type DependencyTree struct {
 
 // package metadata used in sum file.
 type PackageMeta struct {
-	PackageName string   `yaml:"pkg"`    // package name (usually it is a path)
-	TargetName  string   `yaml:"target"` // cmake package name
-	Features    []string `yaml:"features"`
-	Optional    bool     `yaml:"optional"` // if true: this package is optional
-	//	SrcPath      string   `yaml:"-"`
+	PackageName  string   `yaml:"pkg"`    // package name (usually it is a path)
+	TargetName   string   `yaml:"target"` // cmake package name
+	Features     []string `yaml:"features"`
+	Optional     bool     `yaml:"optional"`           // if true: this package is optional
+	SrcPath      string   `yaml:"src_path,omitempty"` // not in yaml: the path to place the source code (default: vendor/src/{pkg_name})
 	Version      string   `yaml:"version"`
 	Builder      []string `yaml:"builder"`        // outer builder (lib used by others, specified by others pkg)
 	SelfBuild    []string `yaml:"self_build"`     // inner builder (shows how this package is built, specified in package's pkg.yaml file)

@@ -60,7 +60,7 @@ type fetch struct {
 	NoCache                bool     // download package without using global cache
 	DepTree                pkg.DependencyTree
 	Auth                   map[string]conf.Auth
-	GlobalReplace          map[string]string
+	GlobalReplace          map[string]pkg.GitReplaceMetadata
 }
 
 func (f *fetch) PreRun() error {
@@ -249,7 +249,7 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, acti
 
 			// initial empty local replace list
 			if pkgYaml.GitReplace == nil {
-				pkgYaml.GitReplace = make(map[string]string)
+				pkgYaml.GitReplace = make(map[string]pkg.GitReplaceMetadata)
 			}
 
 			// compare min pkg version in yaml file
@@ -279,7 +279,7 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, acti
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 				for _, dep := range deps {
 					// todo: currently, we disable features for sub dependencies.
-					if err := f.fetchSubDependency(dep.Context.PackageName, dep.Context.VendorSrcPath(f.PkgHome), nil, pkgLock, dep); err != nil {
+					if err := f.fetchSubDependency(dep.Context.PackageName, dep.Context.SrcPath, nil, pkgLock, dep); err != nil {
 						return err
 					}
 				}
@@ -304,7 +304,7 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, acti
 // download a package source to destination refer to installPath, including source code and installed files.
 // usually src files are located at 'vendor/src/PackageName/', installed files are located at 'vendor/pkg/PackageName/'.
 // pkgHome: project root direction.
-func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []string, localReplace, globalReplace map[string]string,
+func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []string, localReplace, globalReplace map[string]pkg.GitReplaceMetadata,
 	packages map[string]PackageFetcher) ([]*pkg.DependencyTree, error) {
 	var deps []*pkg.DependencyTree
 	// todo check install.
@@ -330,9 +330,8 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []strin
 
 		// src path in (global) user home
 		srcDes := context.HomeCacheSrcPath()
-		vendorSrcDes := context.VendorSrcPath(f.PkgHome)
 
-		err, strategy := determinePackageCacheStrategy(context, f.PkgHome, f.NoCache)
+		err, strategy := determinePackageCacheStrategy(&context, f.PkgHome, f.NoCache, localReplace, globalReplace)
 		if err != nil {
 			return nil, err
 		}
@@ -344,22 +343,26 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []strin
 				return nil, err
 			}
 			// copy package from system global cache to project's vendor/src
-			if err := copy.Copy(srcDes, vendorSrcDes); err != nil {
+			if err := copy.Copy(srcDes, context.SrcPath); err != nil {
 				return nil, err
 			}
 			status = pkg.DlStatusOk
 		case CacheStrategyCopyFromGlobalCache:
 			log.WithFields(log.Fields{"pkg": key, "src_path": srcDes}).Info("skipped fetching package, because it already exists.")
 			// copy downloaded packages from global cache to vendor directory
-			if err := copy.Copy(srcDes, vendorSrcDes); err != nil {
+			if err := copy.Copy(srcDes, context.SrcPath); err != nil {
+				println("could not copy package", err.Error(), "src#", srcDes, "dest#", context.SrcPath)
 				return nil, err
 			}
 			status = pkg.DlStatusSkip
 		case CacheStrategyUserLocalVendor:
-			log.WithFields(log.Fields{"pkg": key, "src_path": vendorSrcDes}).Info("skipped fetching package, because it already exists.")
+			log.WithFields(log.Fields{"pkg": key, "src_path": context.SrcPath}).Info("skipped fetching package, because it already exists.")
 			status = pkg.DlStatusSkip
 		case CacheStrategySkip:
 			// not handled: skip with error.
+		case CacheStrategyUseLocalReplace:
+			log.WithFields(log.Fields{"pkg": key, "src_path": context.SrcPath}).Info("skipped fetching package, because it already exists.")
+			status = pkg.DlStatusSkip
 		default:
 			return nil, fmt.Errorf("unknown package cache strategy: %d", strategy)
 		}

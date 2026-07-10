@@ -1,7 +1,9 @@
 package fetch
 
 import (
+	"errors"
 	"os"
+	"strings"
 
 	"github.com/genshen/pkg"
 )
@@ -11,6 +13,7 @@ const (
 	CacheStrategyCopyFromGlobalCache CacheStrategy = iota                            // package exits at user home's global cache directory.
 	CacheStrategyUserLocalVendor     CacheStrategy = iota                            // package exist in project's vendor/src directory.
 	CacheStrategySkip                CacheStrategy = iota                            // skip package downloading or local copying
+	CacheStrategyUseLocalReplace     CacheStrategy = iota                            // use local repo
 	CacheStrategyDefault                           = CacheStrategyDownloadFromRemote // package exist in project's vendor/src directory.
 )
 
@@ -18,9 +21,32 @@ type CacheStrategy int
 
 // determinePackageCacheStrategy determines package cache strategy via package filesystem path.
 // noCache: dont use the global cache
-func determinePackageCacheStrategy(packageMeta pkg.PackageMeta, projectRoot string, noCache bool) (error, CacheStrategy) {
+func determinePackageCacheStrategy(packageMeta *pkg.PackageMeta, projectRoot string, noCache bool, localReplace, globalReplace map[string]pkg.GitReplaceMetadata) (error, CacheStrategy) {
+	// check local replace:
+	var localRepoPath string = ""
+	if replaceAddr, ok := localReplace[packageMeta.PackageName]; ok && replaceAddr.TargetType == pkg.GitReplaceTypeLocalGit {
+		localRepoPath = replaceAddr.Target
+	}
+	if replaceAddr, ok := globalReplace[packageMeta.PackageName]; ok && replaceAddr.TargetType == pkg.GitReplaceTypeLocalGit {
+		localRepoPath = replaceAddr.Target
+	}
+
+	if localRepoPath != "" {
+		parts := strings.SplitN(localRepoPath, "://", 2)
+		if len(parts) == 2 {
+			if _, err := os.Stat(parts[1]); err != nil {
+				return err, CacheStrategySkip
+			}
+			packageMeta.SrcPath = parts[1]
+			return nil, CacheStrategyUseLocalReplace
+		}
+		return errors.New("invalid path format: " + localRepoPath), CacheStrategySkip
+	}
+
 	pkgCachePath := packageMeta.HomeCacheSrcPath() // package global cache dir
 	pkgVendorPath := packageMeta.VendorSrcPath(projectRoot)
+
+	packageMeta.SrcPath = pkgVendorPath // the src path should be the vendor src path
 
 	// copy only when global cache exists
 	if _, err := os.Stat(pkgVendorPath); os.IsNotExist(err) { // vendor src does not exist.
