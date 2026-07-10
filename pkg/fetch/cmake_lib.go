@@ -95,7 +95,7 @@ func createPkgDepCmake(pkgHome string, rootDep *pkg.DependencyTree, findPackageO
 	}
 
 	for _, depTree := range depsList {
-		var packageSrcPath = depTree.Context.VendorSrcPath(pkgHome)
+		var packageSrcPath = depTree.Context.PackageSrcPath(pkgHome)
 		if depTree.Context.PackageName == pkg.RootPKG {
 			packageSrcPath = pkgHome
 		}
@@ -155,18 +155,20 @@ func cmakeLib(depTree *pkg.DependencyTree, pkgHome string, findPackageOptions st
 
 	basePath := "${PROJECT_HOME_PATH}"
 	for _, dep := range depsList {
-		src := dep.Context.VendorSrcPath(basePath) // vendor/src/@pkg@version,using relative path.
+		src := dep.Context.PackageSrcPath(basePath) // usually vendor/src/@pkg@version, or other path.
 		// add env variables for this package, using relative path.
 		packageEnv := pkg.NewPackageEnvs(basePath, dep.Context.PackageName, src)
 		// generating cmake script.
 		toFile := cmakeDepData{
 			PackageMeta: pkg.PackageMeta{
-				PackageName:  dep.Context.PackageName,
-				Version:      dep.Context.Version,
-				TargetName:   dep.Context.TargetName,
-				SelfCMakeLib: dep.Context.SelfCMakeLib,
-				CMakeLib:     dep.Context.CMakeLib,
-				Features:     dep.Context.Features,
+				PackageName:     dep.Context.PackageName,
+				SrcPath:         dep.Context.SrcPath,
+				SrcLocationType: dep.Context.SrcLocationType,
+				Version:         dep.Context.Version,
+				TargetName:      dep.Context.TargetName,
+				SelfCMakeLib:    dep.Context.SelfCMakeLib,
+				CMakeLib:        dep.Context.CMakeLib,
+				Features:        dep.Context.Features,
 			},
 			SrcDir:             src,
 			DepsDir:            pkg.GetPackageDepsPath(basePath, dep.Context.PackageName),

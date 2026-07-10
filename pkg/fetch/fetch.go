@@ -279,7 +279,7 @@ func (f *fetch) fetchSubDependency(pkgPath string, pkgVendorSrcPath string, acti
 				depTree.Dependencies = append(depTree.Dependencies, deps...)
 				for _, dep := range deps {
 					// todo: currently, we disable features for sub dependencies.
-					if err := f.fetchSubDependency(dep.Context.PackageName, dep.Context.SrcPath, nil, pkgLock, dep); err != nil {
+					if err := f.fetchSubDependency(dep.Context.PackageName, dep.Context.PackageSrcPath(f.PkgHome), nil, pkgLock, dep); err != nil {
 						return err
 					}
 				}
@@ -336,6 +336,7 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []strin
 			return nil, err
 		}
 
+		pkgSrcPath := context.PackageSrcPath(f.PkgHome)
 		switch strategy {
 		case CacheStrategyDownloadFromRemote:
 			log.WithFields(log.Fields{"pkg": context.PackageName, "storage": srcDes}).Info("downloading dependencies.")
@@ -343,25 +344,25 @@ func (f *fetch) dlPackagesDepSrc(pkgLock *map[string]string, featPkgList []strin
 				return nil, err
 			}
 			// copy package from system global cache to project's vendor/src
-			if err := copy.Copy(srcDes, context.SrcPath); err != nil {
+			if err := copy.Copy(srcDes, pkgSrcPath); err != nil {
 				return nil, err
 			}
 			status = pkg.DlStatusOk
 		case CacheStrategyCopyFromGlobalCache:
 			log.WithFields(log.Fields{"pkg": key, "src_path": srcDes}).Info("skipped fetching package, because it already exists.")
 			// copy downloaded packages from global cache to vendor directory
-			if err := copy.Copy(srcDes, context.SrcPath); err != nil {
-				println("could not copy package", err.Error(), "src#", srcDes, "dest#", context.SrcPath)
+			if err := copy.Copy(srcDes, pkgSrcPath); err != nil {
+				println("could not copy package", err.Error(), "src#", srcDes, "dest#", pkgSrcPath)
 				return nil, err
 			}
 			status = pkg.DlStatusSkip
 		case CacheStrategyUserLocalVendor:
-			log.WithFields(log.Fields{"pkg": key, "src_path": context.SrcPath}).Info("skipped fetching package, because it already exists.")
+			log.WithFields(log.Fields{"pkg": key, "src_path": pkgSrcPath}).Info("skipped fetching package, because it already exists.")
 			status = pkg.DlStatusSkip
 		case CacheStrategySkip:
 			// not handled: skip with error.
 		case CacheStrategyUseLocalReplace:
-			log.WithFields(log.Fields{"pkg": key, "src_path": context.SrcPath}).Info("skipped fetching package, because it already exists.")
+			log.WithFields(log.Fields{"pkg": key, "src_path": pkgSrcPath}).Info("skipped fetching package, because it already exists.")
 			status = pkg.DlStatusSkip
 		default:
 			return nil, fmt.Errorf("unknown package cache strategy: %d", strategy)

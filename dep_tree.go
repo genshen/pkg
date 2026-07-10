@@ -20,6 +20,11 @@ const (
 	DlStatusOk
 )
 
+const (
+	SrcLocationVendor = 0
+	SrcLocationLocal  = 1
+)
+
 type DependencyTree struct {
 	Dependencies []*DependencyTree
 	Context      PackageMeta
@@ -29,16 +34,17 @@ type DependencyTree struct {
 
 // package metadata used in sum file.
 type PackageMeta struct {
-	PackageName  string   `yaml:"pkg"`    // package name (usually it is a path)
-	TargetName   string   `yaml:"target"` // cmake package name
-	Features     []string `yaml:"features"`
-	Optional     bool     `yaml:"optional"`           // if true: this package is optional
-	SrcPath      string   `yaml:"src_path,omitempty"` // not in yaml: the path to place the source code (default: vendor/src/{pkg_name})
-	Version      string   `yaml:"version"`
-	Builder      []string `yaml:"builder"`        // outer builder (lib used by others, specified by others pkg)
-	SelfBuild    []string `yaml:"self_build"`     // inner builder (shows how this package is built, specified in package's pkg.yaml file)
-	CMakeLib     string   `yaml:"cmake_lib"`      // outer cmake script to add this lib.
-	SelfCMakeLib string   `yaml:"self_cmake_lib"` // inner cmake script to add this lib.
+	PackageName     string   `yaml:"pkg"`    // package name (usually it is a path)
+	TargetName      string   `yaml:"target"` // cmake package name
+	Features        []string `yaml:"features"`
+	Optional        bool     `yaml:"optional"`                    // if true: this package is optional
+	SrcPath         string   `yaml:"src_path,omitempty"`          // not in yaml: the absolute path to place the source code (default: vendor/src/{pkg_name})
+	SrcLocationType int      `yaml:"src_location_type,omitempty"` // the location of src code.
+	Version         string   `yaml:"version"`
+	Builder         []string `yaml:"builder"`        // outer builder (lib used by others, specified by others pkg)
+	SelfBuild       []string `yaml:"self_build"`     // inner builder (shows how this package is built, specified in package's pkg.yaml file)
+	CMakeLib        string   `yaml:"cmake_lib"`      // outer cmake script to add this lib.
+	SelfCMakeLib    string   `yaml:"self_cmake_lib"` // inner cmake script to add this lib.
 }
 
 func (ctx *PackageMeta) SetPackageName(key string) error {
@@ -81,8 +87,17 @@ func (ctx *PackageMeta) HomeCacheSrcPath() string {
 	}
 }
 
-// return directory path of source in vendor
-func (ctx *PackageMeta) VendorSrcPath(base string) string {
+func (ctx *PackageMeta) PackageSrcPath(base string) string {
+	if ctx.SrcLocationType == SrcLocationLocal {
+		return ctx.SrcPath // return full path
+	} else {
+		// use vendor path.
+		return getPackageVendorSrcPath(base, ctx.PackageName, ctx.Version)
+	}
+}
+
+// DefaultPackageSrcPathVendor returns the default directory path of source in vendor
+func (ctx *PackageMeta) DefaultPackageSrcPathVendor(base string) string {
 	return getPackageVendorSrcPath(base, ctx.PackageName, ctx.Version)
 }
 

@@ -38,13 +38,15 @@ func determinePackageCacheStrategy(packageMeta *pkg.PackageMeta, projectRoot str
 				return err, CacheStrategySkip
 			}
 			packageMeta.SrcPath = parts[1]
+			packageMeta.SrcLocationType = pkg.SrcLocationLocal
 			return nil, CacheStrategyUseLocalReplace
 		}
 		return errors.New("invalid path format: " + localRepoPath), CacheStrategySkip
 	}
 
 	pkgCachePath := packageMeta.HomeCacheSrcPath() // package global cache dir
-	pkgVendorPath := packageMeta.VendorSrcPath(projectRoot)
+	pkgVendorPath := packageMeta.PackageSrcPath(projectRoot)
+	packageMeta.SrcLocationType = pkg.SrcLocationVendor
 
 	packageMeta.SrcPath = pkgVendorPath // the src path should be the vendor src path
 

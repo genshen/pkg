@@ -138,7 +138,7 @@ func (i *_import) Run() error {
 		}
 		// todo use pkg api to get from path
 		packagePathFrom := filepath.Join(importCache, pkg.VendorSrc, meta.PackageName+"@"+meta.Version)
-		targetSrcPath := meta.VendorSrcPath(i.home)
+		targetSrcPath := meta.PackageSrcPath(i.home)
 		// check source directory
 		if _, err := os.Stat(packagePathFrom); err != nil {
 			return err
