@@ -34,12 +34,18 @@ func determinePackageCacheStrategy(packageMeta *pkg.PackageMeta, projectRoot str
 	if localRepoPath != "" {
 		parts := strings.SplitN(localRepoPath, "://", 2)
 		if len(parts) == 2 {
-			if _, err := os.Stat(parts[1]); err != nil {
+			// replace the env in the path string.
+			packageEnv := pkg.NewPackageEnvs(projectRoot, packageMeta.PackageName, packageMeta.DefaultPackageSrcPathVendor(projectRoot))
+			if realReplacePath, err := pkg.ExpandEnv(parts[1], packageEnv); err != nil {
 				return err, CacheStrategySkip
+			} else { // get the real path
+				if _, err := os.Stat(realReplacePath); err != nil {
+					return err, CacheStrategySkip
+				}
+				packageMeta.SrcPath = realReplacePath
+				packageMeta.SrcLocationType = pkg.SrcLocationLocal
+				return nil, CacheStrategyUseLocalReplace
 			}
-			packageMeta.SrcPath = parts[1]
-			packageMeta.SrcLocationType = pkg.SrcLocationLocal
-			return nil, CacheStrategyUseLocalReplace
 		}
 		return errors.New("invalid path format: " + localRepoPath), CacheStrategySkip
 	}

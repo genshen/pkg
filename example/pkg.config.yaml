@@ -5,4 +5,4 @@ auth:
 
 git-replace:
   github.com/google/googletest: gitee.com/mirrors/googletest
-  github.com/fmtlib/fmt: local://../fmt-main/
+  github.com/fmtlib/fmt: local://{{.PKG_ROOT}}/../fmt-main/
