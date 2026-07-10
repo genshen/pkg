@@ -77,7 +77,7 @@ func (l *list) Run() error {
 		}
 
 		if l.listLong { // long info
-			pkgList = append(pkgList, fmt.Sprintf("%s@%s src=%s", meta.PackageName, meta.Version, meta.VendorSrcPath("")))
+			pkgList = append(pkgList, fmt.Sprintf("%s@%s src=%s", meta.PackageName, meta.Version, meta.PackageSrcPath("")))
 		} else { // short info
 			pkgList = append(pkgList, fmt.Sprintf("%s@%s", meta.PackageName, meta.Version))
 		}

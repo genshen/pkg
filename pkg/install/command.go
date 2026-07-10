@@ -41,7 +41,7 @@ func (in *InsExecutor) PkgPreInstall(meta *pkg.PackageMeta) (*pkg.PackageEnvs, e
 		"pkg": meta.PackageName,
 	}).Info("installing package.")
 	// package env
-	packageEnv := pkg.NewPackageEnvs(in.pkgHome, meta.PackageName, meta.VendorSrcPath(in.pkgHome))
+	packageEnv := pkg.NewPackageEnvs(in.pkgHome, meta.PackageName, meta.PackageSrcPath(in.pkgHome))
 	return packageEnv, nil
 }
 
@@ -57,7 +57,7 @@ func (in *InsExecutor) InsCp(triple pkg.InsTriple, meta *pkg.PackageMeta) error 
 		return errors.New("CP instruction must have src and des")
 	}
 	// run copy.
-	srcPath := meta.VendorSrcPath(in.pkgHome)
+	srcPath := meta.PackageSrcPath(in.pkgHome)
 	if err := runInsCopy(filepath.Join(srcPath, triple.Second), triple.Third); err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (in *InsExecutor) InsRun(triple pkg.InsTriple, meta *pkg.PackageMeta) error
 // Triple Third: cmake build arguments
 func (in *InsExecutor) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) error {
 	packageCacheDir := pkg.GetCachePath(in.pkgHome, meta.PackageName)
-	srcPath := meta.VendorSrcPath(in.pkgHome)
+	srcPath := meta.PackageSrcPath(in.pkgHome)
 
 	// make sure the dirs exist.
 	if _, err := os.Stat(packageCacheDir); err != nil {

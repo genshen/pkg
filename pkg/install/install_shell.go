@@ -49,7 +49,7 @@ PKG_SRC_PATH=%s
 
 func (sh *InsShellWriter) PkgPreInstall(meta *pkg.PackageMeta) (*pkg.PackageEnvs, error) {
 	// using short path with env '$PKG_SRC_PATH'.
-	packageSrcPath := strings.Replace(meta.VendorSrcPath(sh.pkgHome), pkg.GetPkgSrcPath(sh.pkgHome), "$PKG_SRC_PATH", 1)
+	packageSrcPath := strings.Replace(meta.PackageSrcPath(sh.pkgHome), pkg.GetPkgSrcPath(sh.pkgHome), "$PKG_SRC_PATH", 1)
 	// package env
 	packageEnv := pkg.NewPackageEnvs("$PROJECT_HOME", meta.PackageName, packageSrcPath)
 	if _, err := sh.writer.WriteString(fmt.Sprintf("\n## pacakge %s\n", meta.PackageName)); err != nil {
@@ -68,7 +68,7 @@ func (sh *InsShellWriter) InsCp(triple pkg.InsTriple, meta *pkg.PackageMeta) err
 	}
 
 	pathBase := "${PROJECT_HOME}"
-	srcPath := meta.VendorSrcPath(pathBase)
+	srcPath := meta.DefaultPackageSrcPathVendor(pathBase)
 	if _, err := sh.writer.WriteString(fmt.Sprintf("mkdir -p \"%s\"\n", pkg.GetIncludePath(pathBase))); err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (sh *InsShellWriter) InsRun(triple pkg.InsTriple, meta *pkg.PackageMeta) er
 
 func (sh *InsShellWriter) InsCMake(triple pkg.InsTriple, meta *pkg.PackageMeta) error {
 	pathBase := "${PROJECT_HOME}"
-	srcPath := meta.VendorSrcPath(pathBase)
+	srcPath := meta.PackageSrcPath(pathBase)
 
 	// prepare cmake config from "features" in pkg.yaml
 	if meta.Features != nil && len(meta.Features) != 0 {

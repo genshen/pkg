@@ -11,7 +11,7 @@ import (
 
 type PackageFetcher interface {
 	setPackageMeta(pkgPath string, meta *pkg.PackageMeta) error
-	fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]string, srcDes string, meta pkg.PackageMeta) error
+	fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]pkg.GitReplaceMetadata, srcDes string, meta pkg.PackageMeta) error
 }
 
 type YamlGitPkgFetcher pkg.YamlGitPackage
@@ -44,17 +44,17 @@ func (git *YamlGitPkgFetcher) setPackageMeta(pkgPath string, meta *pkg.PackageMe
 	return nil
 }
 
-func (git *YamlGitPkgFetcher) fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]string, srcDes string, meta pkg.PackageMeta) error {
+func (git *YamlGitPkgFetcher) fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]pkg.GitReplaceMetadata, srcDes string, meta pkg.PackageMeta) error {
 	// replace priority: package.path in package's pkg.yaml < local replace in pkg.yaml
 	// < local replace in `pkg.config.yaml` < replace in global config
 	if git.Path == "" {
 		git.Path = fmt.Sprintf("https://%s.git", meta.PackageName)
 	}
-	if replaceAddr, ok := localReplace[meta.PackageName]; ok {
-		git.Path = fmt.Sprintf("https://%s.git", replaceAddr)
+	if replaceAddr, ok := localReplace[meta.PackageName]; ok && replaceAddr.TargetType == pkg.GitReplaceTypeRemoteGit {
+		git.Path = fmt.Sprintf("https://%s.git", replaceAddr.Target)
 	}
-	if replaceAddr, ok := globalReplace[meta.PackageName]; ok {
-		git.Path = fmt.Sprintf("https://%s.git", replaceAddr)
+	if replaceAddr, ok := globalReplace[meta.PackageName]; ok && replaceAddr.TargetType == pkg.GitReplaceTypeRemoteGit {
+		git.Path = fmt.Sprintf("https://%s.git", replaceAddr.Target)
 	}
 
 	log.WithFields(log.Fields{
@@ -80,7 +80,7 @@ func (files *YamlFilesPkgFetcher) setPackageMeta(pkgPath string, meta *pkg.Packa
 	return nil
 }
 
-func (files *YamlFilesPkgFetcher) fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]string, srcDes string, meta pkg.PackageMeta) error {
+func (files *YamlFilesPkgFetcher) fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]pkg.GitReplaceMetadata, srcDes string, meta pkg.PackageMeta) error {
 	if err := filesSrc(srcDes, meta.PackageName, files.Path, files.Files); err != nil {
 		_ = os.RemoveAll(srcDes)
 		return err
@@ -99,7 +99,7 @@ func (archive *YamlArchivePkgFetcher) setPackageMeta(pkgPath string, meta *pkg.P
 	return nil
 }
 
-func (archive *YamlArchivePkgFetcher) fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]string, srcDes string, meta pkg.PackageMeta) error {
+func (archive *YamlArchivePkgFetcher) fetch(auth map[string]conf.Auth, localReplace, globalReplace map[string]pkg.GitReplaceMetadata, srcDes string, meta pkg.PackageMeta) error {
 	if err := archiveSrc(archive.Type, srcDes, meta.PackageName, archive.Path); err != nil {
 		_ = os.RemoveAll(srcDes)
 		return err
